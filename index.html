@@ -48,20 +48,29 @@ a{color:var(--acc);text-decoration:none}a:hover{text-decoration:underline}
 .tab{border:1px solid var(--line);background:var(--card);color:var(--ink);padding:6px 14px;border-radius:8px;cursor:pointer;font-size:13px}
 .tab.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
 .hid{display:none}
+.badge{display:inline-block;font-size:11px;font-weight:600;background:var(--warn);border:1px solid var(--line);border-radius:99px;padding:2px 9px;vertical-align:middle;margin-left:6px}
+@media print{.tabs,.chips,#mmore,header .chip{display:none!important}.hid{display:block!important}#v-products,#v-payouts{display:none!important}body{background:#fff;color:#000}.wrap{overflow:visible;border:0}table{min-width:0!important;font-size:11px}tr.lr{display:none}}
 .legend{color:var(--mute);font-size:12px;margin:8px 2px}
 @media(max-width:600px){h1{font-size:17px}}
 </style>
 </head>
 <body>
 <header>
- <h1>Amazon Sales Report — Nasima Perfume NYC Inc</h1>
- <div class="sub">Source: Amazon “Monthly Unified Transaction” reports (amazon.com, seller-fulfilled). Click a month to see days, a day to see every transaction. Every row links to its source CSV file and line number.</div>
+ <h1>Amazon Sales &amp; Supplier Purchases Report — Nasima Perfume NYC Inc <span class="badge">DRAFT – supplier invoices incomplete</span></h1>
+ <div class="sub">Built from Amazon “Monthly Unified Transaction” reports and supplier invoices. Click a month to see days, a day to see transactions or invoices. Every figure links to its source file (CSV line or PDF page). <button class="chip" onclick="window.print()" style="margin-left:8px">Print / save as PDF</button></div>
 </header>
 <main>
- <div class="cards" id="cards"></div>
- <div class="note" id="note"></div>
- <div class="tabs"><button class="tab on" data-v="sales">Sales by month</button><button class="tab" data-v="payouts">Payouts to bank</button><button class="tab" data-v="purchases">Purchases (supplier invoices)</button><button class="tab" data-v="compare">Units: sold vs purchased</button><button class="tab" data-v="products">Products (matched)</button></div>
- <div id="v-sales">
+ <div class="tabs"><button class="tab on" data-v="summary">Summary</button><button class="tab" data-v="sales">Sales by month</button><button class="tab" data-v="payouts">Payouts to bank</button><button class="tab" data-v="purchases">Purchases (supplier invoices)</button><button class="tab" data-v="compare">Units: sold vs purchased</button><button class="tab" data-v="products">Products (matched)</button></div>
+ <div id="v-summary">
+  <div class="cards" id="scards"></div>
+  <div id="sblocks"></div>
+  <h3 style="margin:18px 0 6px;font-size:15px">Month by month (click a month to open its days and transactions)</h3>
+  <div class="wrap"><table id="stbl"><thead><tr><th>Month</th><th>Units sold (Amazon)</th><th>Amazon product sales</th><th>Paid to bank by Amazon</th><th>Units on invoices</th><th>Invoice purchases</th><th>Cumulative sold − purchased (units)</th></tr></thead><tbody id="stb"></tbody></table></div>
+  <div class="legend">Purchases cover only the supplier invoices uploaded so far (see “What this report does not yet include”). Product-level matching is on the Products tab.</div>
+ </div>
+ <div id="v-sales" class="hid">
+  <div class="cards" id="cards"></div>
+  <div class="note" id="note"></div>
   <div class="wrap"><table id="tbl"><thead><tr>
    <th>Month</th><th>Orders</th><th>Units sold</th><th title="Item price only; excludes shipping and tax">Product sales</th><th>Shipping credits</th><th title="Selling fees, shipping labels and other Amazon fees">Amazon fees</th><th>Refunds (#)</th><th>Refunds ($)</th><th title="Money Amazon transferred to the bank account">Paid to bank</th><th title="Change in Amazon balance (all rows summed). Not profit.">Net balance change</th><th>Source file</th>
   </tr></thead><tbody id="tb"></tbody></table></div>
@@ -168,7 +177,7 @@ async function buildPayouts(months){
  $('#ptb').innerHTML=all.map(r=>`<tr><td>${r.d}</td><td>…${esc(r.acct||'?')}</td><td>${fm(-r.total)}</td><td>${esc(r.settle)}</td><td style="text-align:left;white-space:normal">${esc(dec(r.desc))}</td><td style="text-align:left"><a class="src" href="${srcHref(r.src)}">${esc(r.src.replace('MonthlyUnifiedTransaction','')).replace('.csv','')} : line ${r.line}</a></td></tr>`).join('');
  $('#pleg').textContent=all.length+' payouts. By bank account: '+Object.entries(byAcct).map(([a,v])=>'…'+a+' = '+fm(v)).join(' · ');
 }
-document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('on',x===b));['sales','payouts','purchases','compare','products'].forEach(v=>$('#v-'+v).classList.toggle('hid',b.dataset.v!==v));if(b.dataset.v==='purchases'||b.dataset.v==='compare')loadInv();if(b.dataset.v==='products')loadProducts()});
+document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('on',x===b));['summary','sales','payouts','purchases','compare','products'].forEach(v=>$('#v-'+v).classList.toggle('hid',b.dataset.v!==v));if(b.dataset.v==='purchases'||b.dataset.v==='compare')loadInv();if(b.dataset.v==='summary')loadSummary();if(b.dataset.v==='products')loadProducts()});
 let INV=null,invP=null;
 const pdfHref=(f,pg)=>f.split('/').map(encodeURIComponent).join('/')+(pg?'#page='+pg:'');
 const SUP={'SCENTCITY INC':'SCENTCITY','B&S FRAGRANCES AND COSMETICS INC.':'B&S','DEWAN FRAGRANCES INC':'DEWAN','PERFUME CENTER OF AMERICA':'PCA','PERFUME NETWORK INC':'PNI'};
@@ -222,6 +231,49 @@ function buildCompare(){
   h+=`<tr><td>${mname(k)}</td><td>${fi(so)}</td><td>${fi(pu)}</td><td>${fc2(pu-so)}</td><td>${fi(cs)}</td><td>${fi(cp)}</td><td>${fc2(cp-cs)}</td></tr>`});
  h+=`<tr class="tot"><td>Total</td><td>${fi(cs)}</td><td>${fi(cp)}</td><td>${fc2(cp-cs)}</td><td></td><td></td><td></td></tr>`;
  $('#ctb').innerHTML=h;
+}
+let sumP=null;
+function loadSummary(){if(!sumP)sumP=Promise.all([loadInv(),fetch('data/report_meta.json').then(r=>r.json()).catch(()=>({documents:{}})),fetch('data/products/summary.json').then(r=>r.json()).catch(()=>null),fetch('data/invoices/supporting.json').then(r=>r.json()).catch(()=>[])]).then(([,meta,ps])=>buildSummary(meta,ps));return sumP}
+function buildSummary(meta,ps){
+ const months=Object.keys(S).sort(),all=sum(months.map(m=>S[m].totals));
+ const fin=INV.filter(i=>i.final&&i.category==='nasima_purchase'),up=INV.filter(i=>i.final&&i.category==='upstream_scentcity');
+ const pu=fin.reduce((a,i)=>a+units(i),0),pt=Math.round(fin.reduce((a,i)=>a+i.total,0)*100)/100,upt=Math.round(up.reduce((a,i)=>a+i.total,0)*100)/100;
+ const by={};fin.forEach(i=>{const k=i.iso_date.slice(0,7);(by[k]=by[k]||{u:0,t:0});by[k].u+=units(i);by[k].t+=i.total});
+ $('#scards').innerHTML=[['Units sold on Amazon',fi(all.units)],['Amazon product sales',fm(all.sales)],['Paid to bank by Amazon',fm(all.payouts)],['Units on supplier invoices (so far)',fi(pu)],['Supplier purchases on invoices (so far)',fm(pt)],['Supplier invoices counted',fi(fin.length)]].map(([k,v])=>`<div class="card"><div class="k">${k}</div><div class="v">${v}</div></div>`).join('');
+ const docs=Object.entries(meta.documents||{}).map(([k,v])=>`<tr><td style="text-align:left">${esc(k)}</td><td>${fi(v)}</td></tr>`).join('');
+ const sold=ps?ps.sold_units_by_status:null;
+ $('#sblocks').innerHTML=`
+ <div class="note"><b>Status of this report.</b> Draft prepared from the documents uploaded so far${meta.generated_utc?' (generated '+esc(meta.generated_utc)+')':''}. <b>Some supplier invoices exist only as paper copies and are not yet included, so the purchase figures below are a minimum, not a complete total.</b> They will be scanned and added; the report is rebuilt from the source documents each time.</div>
+ <h3 style="margin:16px 0 6px;font-size:15px">What the figures mean</h3>
+ <div class="wrap"><table style="min-width:0"><tbody>
+  <tr><td style="text-align:left"><b>Units sold</b></td><td style="text-align:left;white-space:normal">Quantity on Amazon order rows (amazon.com, seller-fulfilled), ${all.orders?fi(all.orders)+' orders, ':''}Jan 2017 – Mar 2020. Refund rows carry no quantity, so refunds (${fi(all.refunds)}, ${fm(all.refund_amt)}) are shown in dollars only.</td></tr>
+  <tr><td style="text-align:left"><b>Amazon product sales</b></td><td style="text-align:left;white-space:normal">Item price only, before shipping credits, tax, fees and refunds.</td></tr>
+  <tr><td style="text-align:left"><b>Paid to bank by Amazon</b></td><td style="text-align:left;white-space:normal">Amazon's own “Transfer” records to the bank accounts ending 6276, 738 and 221. See the Payouts tab. Matching these to the bank statements in the repository is a separate step not yet shown here.</td></tr>
+  <tr><td style="text-align:left"><b>Units / purchases on invoices</b></td><td style="text-align:left;white-space:normal">Supplier invoice lines for ${fin.length} distinct invoices from 5 suppliers (SCENTCITY INC, B&amp;S Fragrances, Dewan Fragrances, Perfume Center of America, Perfume Network), Jun 2017 – Nov 2019. Each invoice number is counted once, using its final version.</td></tr>
+ </tbody></table></div>
+ <h3 style="margin:16px 0 6px;font-size:15px">What this report does not yet include / items to confirm</h3>
+ <div class="wrap"><table style="min-width:0"><tbody>
+  <tr><td style="text-align:left"><b>Paper invoices</b></td><td style="text-align:left;white-space:normal">Invoices supplied only as hard copy are not yet scanned. Until they are added, units sold exceed units sourced (${fi(all.units-pu)} units overall) and this gap should <u>not</u> be read as units sold without a supplier.</td></tr>
+  <tr><td style="text-align:left"><b>Bank statements</b></td><td style="text-align:left;white-space:normal">${fi((meta.documents||{})['Bank statements and payment cheque (PDF)']||0)} bank statement / cheque PDFs are on file but are not yet reconciled to Amazon payouts or to supplier payments.</td></tr>
+  <tr><td style="text-align:left"><b>Amazon data gaps</b></td><td style="text-align:left;white-space:normal">No Amazon report for Dec 2016 (payouts began Dec 2016). Orders and payouts stop in Mar 2020. A single adjustment of <b>-$104,600.03</b> (type “Adjustment – Other”) is dated 9 Dec 2020 and is unexplained in the data (open Dec 2020 on the Sales tab).</td></tr>
+  <tr><td style="text-align:left"><b>Invoice to confirm</b></td><td style="text-align:left;white-space:normal">B&amp;S Fragrances invoice 00025195 exists as two files with different totals ($8,896.50 and $8,782.50); the later file ($8,782.50) is used.</td></tr>
+  <tr><td style="text-align:left"><b>Supply-chain documents excluded</b></td><td style="text-align:left;white-space:normal">${up.length} invoices billed to SCENTCITY (${fm(upt)}) are Scentcity's own purchases from its suppliers. They are listed on the Purchases tab for provenance and are <u>not</u> counted as Nasima purchases.</td></tr>
+  <tr><td style="text-align:left"><b>Product matching</b></td><td style="text-align:left;white-space:normal">${sold?`Automatic name/size matching: ${fi(sold.matched_high)} units sold matched with high confidence, ${fi(sold.matched_probable)} probable, ${fi(sold.review)} need review, ${fi(sold.sold_no_invoice)} have no similar invoice product. Pack sizes in titles (e.g. “Pack of 2”) are not applied.`:'See Products tab.'}</td></tr>
+ </tbody></table></div>
+ <h3 style="margin:16px 0 6px;font-size:15px">Source documents in this report</h3>
+ <div class="wrap"><table style="min-width:0"><tbody>${docs}</tbody></table></div>`;
+ const keys=[...new Set([...months,...Object.keys(by)])].sort();let cs=0,cp=0,h='',yr=null,ym={u:0,s:0,sa:0,po:0,pt:0};
+ const row=(l,o)=>`<td>${fi(o.s)}</td><td>${fm(o.sa)}</td><td>${fm(o.po)}</td><td>${fi(o.u)}</td><td>${fm(o.pt)}</td>`;
+ const flush=()=>{if(yr)h+=`<tr class="y"><td>${yr} total</td>${row('',{s:ym.s,sa:ym.sa,po:ym.po,u:ym.u,pt:ym.pt})}<td></td></tr>`};
+ let T={u:0,s:0,sa:0,po:0,pt:0};
+ keys.forEach(k=>{const y=k.slice(0,4);if(y!==yr){flush();yr=y;ym={u:0,s:0,sa:0,po:0,pt:0}}
+  const t=S[k]?S[k].totals:{units:0,sales:0,payouts:0},b=by[k]||{u:0,t:0};
+  const o={s:t.units,sa:t.sales,po:t.payouts,u:b.u,pt:Math.round(b.t*100)/100};cs+=o.s;cp+=o.u;
+  [ym,T].forEach(x=>{x.u+=o.u;x.s+=o.s;x.sa+=o.sa;x.po+=o.po;x.pt+=o.pt});
+  h+=`<tr class="m" data-go="${k}"><td><span class="car">▶</span>${mname(k)}</td>${row('',o)}<td>${fc2(cp-cs)}</td></tr>`});
+ flush();h+=`<tr class="tot"><td>Grand total</td>${row('',T)}<td>${fc2(cp-cs)}</td></tr>`;
+ $('#stb').innerHTML=h;
+ $('#stb').addEventListener('click',e=>{const tr=e.target.closest('tr[data-go]');if(!tr)return;document.querySelector('.tab[data-v=sales]').click();const r=document.querySelector(`tr.m[data-m="${tr.dataset.go}"]`);if(r){r.scrollIntoView();if(!r.classList.contains('open'))r.click()}})
 }
 let PR=null,prP=null,PSUM=null,shown=0,view=[];
 const STAT={matched_high:'Matched – high',matched_probable:'Matched – probable',review:'Needs review',sold_no_invoice:'Sold, no invoice found',sourced_not_sold:'Sourced, not sold on Amazon'};
@@ -278,7 +330,7 @@ function onMClick(e){
   <table class="l" style="min-width:800px"><thead><tr><th>Date</th><th>Supplier</th><th>Invoice #</th><th>Description</th><th>Qty</th><th>Price</th><th>Amount</th><th>Source</th></tr></thead><tbody>${bo.map(r=>`<tr><td class="s">${r[0]}</td><td class="s">${esc(r[1])}</td><td class="s">${esc(r[2])}</td><td class="t">${esc(r[8])}</td><td>${r[3]}</td><td>${fm(r[4])}</td><td>${fm(r[5])}</td><td class="s"><a class="src" href="${pdfHref(r[6],r[7])}">PDF page ${r[7]}</a></td></tr>`).join('')||'<tr><td colspan="8" class="s">No invoice lines</td></tr>'}</tbody></table>`}
 }
 const fc2=n=>n<0?'<span class="neg">'+fi(n)+'</span>':fi(n);
-init().catch(e=>{document.body.insertAdjacentHTML('afterbegin','<div class="note">Could not load data ('+esc(e)+'). Open this page through a web server (e.g. GitHub Pages / Cloudflare Pages), not by double-clicking the file.</div>')});
+init().then(()=>loadSummary()).catch(e=>{document.body.insertAdjacentHTML('afterbegin','<div class="note">Could not load data ('+esc(e)+'). Open this page through a web server (e.g. GitHub Pages / Cloudflare Pages), not by double-clicking the file.</div>')});
 </script>
 </body>
 </html>
