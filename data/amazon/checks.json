@@ -1,0 +1,265 @@
+{
+ "files": [
+  {
+   "file": "2017AprMonthlyUnifiedTransaction.csv",
+   "rows": 2808,
+   "sum_total": 3132.19
+  },
+  {
+   "file": "2017AugMonthlyUnifiedTransaction.csv",
+   "rows": 6456,
+   "sum_total": -7001.5
+  },
+  {
+   "file": "2017DecMonthlyUnifiedTransaction.csv",
+   "rows": 7476,
+   "sum_total": -20701.79
+  },
+  {
+   "file": "2017FebMonthlyUnifiedTransaction.csv",
+   "rows": 842,
+   "sum_total": 10551.07
+  },
+  {
+   "file": "2017JanMonthlyUnifiedTransaction.csv",
+   "rows": 196,
+   "sum_total": -4017.55
+  },
+  {
+   "file": "2017JulMonthlyUnifiedTransaction.csv",
+   "rows": 5632,
+   "sum_total": -1960.89
+  },
+  {
+   "file": "2017JunMonthlyUnifiedTransaction.csv",
+   "rows": 5988,
+   "sum_total": 4551.58
+  },
+  {
+   "file": "2017MarMonthlyUnifiedTransaction.csv",
+   "rows": 1811,
+   "sum_total": 6054.44
+  },
+  {
+   "file": "2017MayMonthlyUnifiedTransaction.csv",
+   "rows": 4286,
+   "sum_total": 6560.58
+  },
+  {
+   "file": "2017NovMonthlyUnifiedTransaction.csv",
+   "rows": 8583,
+   "sum_total": 19282.14
+  },
+  {
+   "file": "2017OctMonthlyUnifiedTransaction.csv",
+   "rows": 7848,
+   "sum_total": 6473.4
+  },
+  {
+   "file": "2017SepMonthlyUnifiedTransaction.csv",
+   "rows": 5208,
+   "sum_total": 4519.72
+  },
+  {
+   "file": "2018AprMonthlyUnifiedTransaction.csv",
+   "rows": 7631,
+   "sum_total": 24691.72
+  },
+  {
+   "file": "2018AugMonthlyUnifiedTransaction.csv",
+   "rows": 5450,
+   "sum_total": -16375.04
+  },
+  {
+   "file": "2018DecMonthlyUnifiedTransaction.csv",
+   "rows": 13320,
+   "sum_total": -14771.18
+  },
+  {
+   "file": "2018FebMonthlyUnifiedTransaction.csv",
+   "rows": 5848,
+   "sum_total": 6679.09
+  },
+  {
+   "file": "2018JanMonthlyUnifiedTransaction.csv",
+   "rows": 5124,
+   "sum_total": -8352.88
+  },
+  {
+   "file": "2018JulMonthlyUnifiedTransaction.csv",
+   "rows": 6626,
+   "sum_total": -19327.44
+  },
+  {
+   "file": "2018JunMonthlyUnifiedTransaction.csv",
+   "rows": 5443,
+   "sum_total": 12680.2
+  },
+  {
+   "file": "2018MarMonthlyUnifiedTransaction.csv",
+   "rows": 6542,
+   "sum_total": -768.69
+  },
+  {
+   "file": "2018MayMonthlyUnifiedTransaction.csv",
+   "rows": 8046,
+   "sum_total": -10941.24
+  },
+  {
+   "file": "2018NovMonthlyUnifiedTransaction.csv",
+   "rows": 10110,
+   "sum_total": 48346.35
+  },
+  {
+   "file": "2018OctMonthlyUnifiedTransaction.csv",
+   "rows": 7988,
+   "sum_total": 5204.17
+  },
+  {
+   "file": "2018SepMonthlyUnifiedTransaction.csv",
+   "rows": 5373,
+   "sum_total": 13847.62
+  },
+  {
+   "file": "2019AprMonthlyUnifiedTransaction.csv",
+   "rows": 8972,
+   "sum_total": 3070.54
+  },
+  {
+   "file": "2019AugMonthlyUnifiedTransaction.csv",
+   "rows": 9120,
+   "sum_total": -13233.59
+  },
+  {
+   "file": "2019DecMonthlyUnifiedTransaction.csv",
+   "rows": 16301,
+   "sum_total": -23752.22
+  },
+  {
+   "file": "2019FebMonthlyUnifiedTransaction.csv",
+   "rows": 9020,
+   "sum_total": 9226.57
+  },
+  {
+   "file": "2019JanMonthlyUnifiedTransaction.csv",
+   "rows": 9795,
+   "sum_total": -21203.8
+  },
+  {
+   "file": "2019JulMonthlyUnifiedTransaction.csv",
+   "rows": 9218,
+   "sum_total": 15196.31
+  },
+  {
+   "file": "2019JunMonthlyUnifiedTransaction.csv",
+   "rows": 7065,
+   "sum_total": -10229.89
+  },
+  {
+   "file": "2019MarMonthlyUnifiedTransaction.csv",
+   "rows": 9882,
+   "sum_total": -10098.22
+  },
+  {
+   "file": "2019MayMonthlyUnifiedTransaction.csv",
+   "rows": 7016,
+   "sum_total": 6094.5
+  },
+  {
+   "file": "2019NovMonthlyUnifiedTransaction.csv",
+   "rows": 13214,
+   "sum_total": 31488.77
+  },
+  {
+   "file": "2019OctMonthlyUnifiedTransaction.csv",
+   "rows": 6183,
+   "sum_total": -5223.32
+  },
+  {
+   "file": "2019SepMonthlyUnifiedTransaction.csv",
+   "rows": 8301,
+   "sum_total": 12434.04
+  },
+  {
+   "file": "2020AprMonthlyUnifiedTransaction.csv",
+   "rows": 41,
+   "sum_total": -859.37
+  },
+  {
+   "file": "2020AugMonthlyUnifiedTransaction.csv",
+   "rows": 0,
+   "sum_total": 0.0
+  },
+  {
+   "file": "2020DecMonthlyUnifiedTransaction.csv",
+   "rows": 1,
+   "sum_total": -104600.03
+  },
+  {
+   "file": "2020FebMonthlyUnifiedTransaction.csv",
+   "rows": 10031,
+   "sum_total": 13137.71
+  },
+  {
+   "file": "2020JanMonthlyUnifiedTransaction.csv",
+   "rows": 10368,
+   "sum_total": -3963.43
+  },
+  {
+   "file": "2020JulMonthlyUnifiedTransaction.csv",
+   "rows": 0,
+   "sum_total": 0.0
+  },
+  {
+   "file": "2020JunMonthlyUnifiedTransaction.csv",
+   "rows": 3,
+   "sum_total": -75.63
+  },
+  {
+   "file": "2020MarMonthlyUnifiedTransaction.csv",
+   "rows": 8887,
+   "sum_total": 29162.81
+  },
+  {
+   "file": "2020MayMonthlyUnifiedTransaction.csv",
+   "rows": 11,
+   "sum_total": -204.99
+  },
+  {
+   "file": "2020NovMonthlyUnifiedTransaction.csv",
+   "rows": 0,
+   "sum_total": 0.0
+  },
+  {
+   "file": "2020OctMonthlyUnifiedTransaction.csv",
+   "rows": 1,
+   "sum_total": -41.87
+  },
+  {
+   "file": "2020SepMonthlyUnifiedTransaction.csv",
+   "rows": 0,
+   "sum_total": 0.0
+  }
+ ],
+ "total_rows_in_files": 288065,
+ "total_rows_written": 288065,
+ "rows_where_components_ne_total": 0,
+ "identical_row_groups_kept": 156,
+ "types": {
+  "Transfer": 803,
+  "Order": 143767,
+  "Shipping Services": 142408,
+  "Refund": 979,
+  "Adjustment": 50,
+  "Service Fee": 41,
+  "A-to-z Guarantee Claim": 6,
+  "Chargeback Refund": 11
+ },
+ "payout_accounts": {
+  "6276": 403,
+  "738": 139,
+  "221": 261
+ },
+ "first_date": "2017-01-02",
+ "last_date": "2020-12-09"
+}
