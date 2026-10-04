@@ -60,7 +60,7 @@ a{color:var(--acc);text-decoration:none}a:hover{text-decoration:underline}
  <div class="sub">Built from Amazon “Monthly Unified Transaction” reports and supplier invoices. Click a month to see days, a day to see transactions or invoices. Every figure links to its source file (CSV line or PDF page). <button class="chip" onclick="window.print()" style="margin-left:8px">Print / save as PDF</button></div>
 </header>
 <main>
- <div class="tabs"><button class="tab on" data-v="summary">Summary</button><button class="tab" data-v="sales">Sales by month</button><button class="tab" data-v="payouts">Payouts to bank</button><button class="tab" data-v="purchases">Purchases (supplier invoices)</button><button class="tab" data-v="compare">Units: sold vs purchased</button><button class="tab" data-v="products">Products (matched)</button></div>
+ <div class="tabs"><button class="tab on" data-v="summary">Summary</button><button class="tab" data-v="sales">Sales by month</button><button class="tab" data-v="period" id="periodtab">Sales Aug 2018 – Mar 2020</button><button class="tab" data-v="payouts">Payouts to bank</button><button class="tab" data-v="purchases">Purchases (supplier invoices)</button><button class="tab" data-v="compare">Units: sold vs purchased</button><button class="tab" data-v="products">Products (matched)</button></div>
  <div id="v-summary">
   <div class="cards" id="scards"></div>
   <div id="sblocks"></div>
@@ -75,6 +75,14 @@ a{color:var(--acc);text-decoration:none}a:hover{text-decoration:underline}
    <th>Month</th><th>Orders</th><th>Units sold</th><th title="Item price only; excludes shipping and tax">Product sales</th><th>Shipping credits</th><th title="Selling fees, shipping labels and other Amazon fees">Amazon fees</th><th>Refunds (#)</th><th>Refunds ($)</th><th title="Money Amazon transferred to the bank account">Paid to bank</th><th title="Change in Amazon balance (all rows summed). Not profit.">Net balance change</th><th>Source file</th>
   </tr></thead><tbody id="tb"></tbody></table></div>
   <div class="legend">Dates are Amazon's Pacific time as printed. Units = quantity on order rows. Refund rows carry no quantity, so refunds are shown in dollars. “Net balance change” is not profit: it is the sum of every Amazon row, and differs from payouts when money is held or released across months.</div>
+ </div>
+ <div id="v-period" class="hid">
+  <div class="chips" style="margin:6px 0 10px"><span class="sub">Period:</span> from <select id="pfrom" class="chip"></select> to <select id="pto" class="chip"></select> <span class="sub">(default: first full month after the switch to the Capital One account, Jul 2018, through the last month with orders, Mar 2020)</span></div>
+  <div class="cards" id="pdcards"></div>
+  <div class="wrap"><table id="ptbl2"><thead><tr>
+   <th>Month</th><th>Orders</th><th>Units sold</th><th title="Item price only; excludes shipping and tax">Product sales</th><th>Shipping credits</th><th>Amazon fees</th><th>Refunds (#)</th><th>Refunds ($)</th><th title="Money Amazon transferred to the bank account">Paid to bank</th><th title="Change in Amazon balance (all rows summed). Not profit.">Net balance change</th><th>Source file</th>
+  </tr></thead><tbody id="tb2"></tbody></table></div>
+  <div class="legend">Same definitions as “Sales by month”. Click a month for its days and a day for every transaction (each row links to its source CSV line). Dates are Amazon's Pacific time.</div>
  </div>
  <div id="v-payouts" class="hid">
   <div class="wrap"><table id="ptbl"><thead><tr><th>Date</th><th>Bank account (last digits)</th><th>Amount paid</th><th>Settlement ID</th><th>Description</th><th>Source</th></tr></thead><tbody id="ptb"></tbody></table></div>
@@ -127,13 +135,32 @@ async function init(){
  const all=sum(months.map(m=>S[m].totals));
  $('#cards').innerHTML=[['Units sold',fi(all.units)],['Product sales',fm(all.sales)],['Paid to bank by Amazon',fm(all.payouts)],['Orders',fi(all.orders)],['Refunds',fi(all.refunds)+' ('+fm(all.refund_amt)+')'],['Period',ch.first_date+' → '+ch.last_date]].map(([k,v])=>`<div class="card"><div class="k">${k}</div><div class="v">${v}</div></div>`).join('');
  $('#note').innerHTML=`<b>Data notes.</b> ${fi(ch.total_rows_written)} rows loaded from ${ch.files.length} CSV files; every row's columns add up to its total (${ch.rows_where_components_ne_total} mismatches); ${ch.identical_row_groups_kept} groups of identical rows are kept, not removed. Orders and payouts stop in Mar 2020; Apr–Dec 2020 contain only refunds, label credits and two adjustments (see Dec 9, 2020: “Adjustment – Other”).`;
- const tb=$('#tb');let html='',yr=null,ym=[];
+ monthTable($('#tb'),months);
+ initPeriod(months);
+ buildPayouts(months);
+}
+function monthTable(tb,months){
+ let html='',yr=null,ym=[];
  const flushYear=()=>{if(yr){html+=`<tr class="y"><td>${yr} total</td>${cells(sum(ym))}<td></td></tr>`}};
  months.forEach(m=>{const y=m.slice(0,4);if(y!==yr){flushYear();yr=y;ym=[]}ym.push(S[m].totals);
   html+=`<tr class="m" data-m="${m}"><td><span class="car">▶</span>${mname(m)}</td>${cells(S[m].totals)}<td><a href="${srcHref(srcFile(m))}" onclick="event.stopPropagation()" class="src">${srcFile(m).replace('MonthlyUnifiedTransaction','')}</a></td></tr>`});
- flushYear();html+=`<tr class="tot"><td>Grand total</td>${cells(all)}<td></td></tr>`;tb.innerHTML=html;
- tb.addEventListener('click',onClick);
- buildPayouts(months);
+ flushYear();html+=`<tr class="tot"><td>${months.length>0?'Total '+mname(months[0])+' – '+mname(months[months.length-1]):'Total'}</td>${cells(sum(months.map(m=>S[m].totals)))}<td></td></tr>`;
+ tb.innerHTML=html;
+ if(!tb.dataset.bound){tb.addEventListener('click',onClick);tb.dataset.bound='1'}
+}
+function initPeriod(all){
+ const real=all.filter(m=>S[m].totals.orders>0||S[m].totals.units>0);   // months with orders
+ const opts=all.map(m=>`<option value="${m}">${mname(m)}</option>`).join('');
+ $('#pfrom').innerHTML=opts;$('#pto').innerHTML=opts;
+ $('#pfrom').value=all.includes('2018-08')?'2018-08':all[0];$('#pto').value=real.length?real[real.length-1]:all[all.length-1];
+ const draw=()=>{
+  let a=$('#pfrom').value,b=$('#pto').value;if(a>b){[a,b]=[b,a]}
+  const ms=all.filter(m=>m>=a&&m<=b),t=sum(ms.map(m=>S[m].totals));
+  $('#periodtab').textContent='Sales '+mname(a)+' – '+mname(b);
+  $('#pdcards').innerHTML=[['Period',mname(a)+' – '+mname(b)],['Units sold',fi(t.units)],['Orders',fi(t.orders)],['Product sales',fm(t.sales)],['Refunds',fi(t.refunds)+' ('+fm(t.refund_amt)+')'],['Paid to bank by Amazon',fm(t.payouts)]].map(([k,v])=>`<div class="card"><div class="k">${k}</div><div class="v" style="font-size:18px">${v}</div></div>`).join('');
+  monthTable($('#tb2'),ms);
+ };
+ $('#pfrom').onchange=draw;$('#pto').onchange=draw;draw();
 }
 function toggleRows(tr,cls,build){
  const nxt=tr.nextElementSibling;
@@ -144,7 +171,7 @@ function onClick(e){
  const tr=e.target.closest('tr');if(!tr||e.target.closest('a,button'))return;
  if(tr.classList.contains('m')){
   const m=tr.dataset.m;tr.dataset.id=m;
-  if(tr.classList.contains('open')){tr.classList.remove('open');[...document.querySelectorAll(`[data-p="${m}"]`)].forEach(x=>x.remove());return}
+  if(tr.classList.contains('open')){tr.classList.remove('open');[...tr.parentElement.querySelectorAll(`[data-p="${m}"]`)].forEach(x=>x.remove());return}
   tr.classList.add('open');let h='';
   Object.entries(S[m].days).forEach(([d,t])=>{h+=`<tr class="d" data-p="${m}" data-day="${d}" data-id="${d}"><td><span class="car">▶</span>${d}</td>${cells(t)}<td></td></tr>`});
   tr.insertAdjacentHTML('afterend',h);
@@ -177,7 +204,7 @@ async function buildPayouts(months){
  $('#ptb').innerHTML=all.map(r=>`<tr><td>${r.d}</td><td>…${esc(r.acct||'?')}</td><td>${fm(-r.total)}</td><td>${esc(r.settle)}</td><td style="text-align:left;white-space:normal">${esc(dec(r.desc))}</td><td style="text-align:left"><a class="src" href="${srcHref(r.src)}">${esc(r.src.replace('MonthlyUnifiedTransaction','')).replace('.csv','')} : line ${r.line}</a></td></tr>`).join('');
  $('#pleg').textContent=all.length+' payouts. By bank account: '+Object.entries(byAcct).map(([a,v])=>'…'+a+' = '+fm(v)).join(' · ');
 }
-document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('on',x===b));['summary','sales','payouts','purchases','compare','products'].forEach(v=>$('#v-'+v).classList.toggle('hid',b.dataset.v!==v));if(b.dataset.v==='purchases'||b.dataset.v==='compare')loadInv();if(b.dataset.v==='summary')loadSummary();if(b.dataset.v==='products')loadProducts()});
+document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('on',x===b));['summary','sales','period','payouts','purchases','compare','products'].forEach(v=>$('#v-'+v).classList.toggle('hid',b.dataset.v!==v));if(b.dataset.v==='purchases'||b.dataset.v==='compare')loadInv();if(b.dataset.v==='summary')loadSummary();if(b.dataset.v==='products')loadProducts()});
 let INV=null,invP=null;
 const pdfHref=(f,pg)=>f.split('/').map(encodeURIComponent).join('/')+(pg?'#page='+pg:'');
 const SUP={'SCENTCITY INC':'SCENTCITY','B&S FRAGRANCES AND COSMETICS INC.':'B&S','DEWAN FRAGRANCES INC':'DEWAN','PERFUME CENTER OF AMERICA':'PCA','PERFUME NETWORK INC':'PNI'};
@@ -273,7 +300,7 @@ function buildSummary(meta,ps){
   h+=`<tr class="m" data-go="${k}"><td><span class="car">▶</span>${mname(k)}</td>${row('',o)}<td>${fc2(cp-cs)}</td></tr>`});
  flush();h+=`<tr class="tot"><td>Grand total</td>${row('',T)}<td>${fc2(cp-cs)}</td></tr>`;
  $('#stb').innerHTML=h;
- $('#stb').addEventListener('click',e=>{const tr=e.target.closest('tr[data-go]');if(!tr)return;document.querySelector('.tab[data-v=sales]').click();const r=document.querySelector(`tr.m[data-m="${tr.dataset.go}"]`);if(r){r.scrollIntoView();if(!r.classList.contains('open'))r.click()}})
+ $('#stb').addEventListener('click',e=>{const tr=e.target.closest('tr[data-go]');if(!tr)return;document.querySelector('.tab[data-v=sales]').click();const r=document.querySelector(`#tb tr.m[data-m="${tr.dataset.go}"]`);if(r){r.scrollIntoView();if(!r.classList.contains('open'))r.click()}})
 }
 let PR=null,prP=null,PSUM=null,shown=0,view=[];
 const STAT={matched_high:'Matched – high',matched_probable:'Matched – probable',review:'Needs review',sold_no_invoice:'Sold, no invoice found',sourced_not_sold:'Sourced, not sold on Amazon'};
