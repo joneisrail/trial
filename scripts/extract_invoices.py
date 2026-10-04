@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 """Extract SCENTCITY INC supplier invoices (text-layer PDFs) -> data/invoices/*.json
 Every invoice records its source PDF, page of each line, and validation results."""
-import glob, json, os, re, subprocess, collections, datetime
+import sys, glob, json, os, re, subprocess, collections, datetime
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-SRC = os.path.join(ROOT, "All Invoice"); OUT = os.path.join(ROOT, "data", "invoices")
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from parse_bs import parse_bs
+SRC = os.path.join(ROOT, "All Invoice"); BS = os.path.join(SRC, "BS Fragrance"); OUT = os.path.join(ROOT, "data", "invoices")
 NUM = r"-?[\d,]*\.?\d+"
 LINE = re.compile(rf"^\s*({NUM})\s+(\S+)\s+(.*?)\s+({NUM})\s+({NUM})\s*$")
 PEND = re.compile(rf"^\s*({NUM})\s+(\S+)\s*$")           # qty + code, description/price on next line
@@ -64,15 +66,22 @@ def parse(path):
     return inv
 if __name__ == "__main__":
     os.makedirs(OUT, exist_ok=True)
-    invs = [parse(p) for p in sorted(glob.glob(os.path.join(SRC, "*.pdf")))]
-    # Same invoice number appears in several files = successive versions of a running invoice
-    # (earlier files are subsets of later ones). The final version = latest PDF creation time.
+    invs = []
+    for p in sorted(glob.glob(os.path.join(SRC, "*.pdf"))):
+        i = parse(p); i["supplier"] = "SCENTCITY INC"; i["doc_type"] = "invoice"
+        i["file"] = "All Invoice/" + i["file"]; invs.append(i)
+    for p in sorted(glob.glob(os.path.join(BS, "*.pdf"))):
+        invs.append(parse_bs(p, os.path.relpath(p, ROOT)))
+    # Same invoice number in several files = versions / copies of one invoice. Final version =
+    # an invoice rather than a draft order, then latest PDF creation time, then larger total.
     groups = collections.defaultdict(list)
-    for i in invs: groups[i["number"]].append(i)
+    for i in invs: groups[(i["supplier"], i["number"])].append(i)
     for n, v in groups.items():
-        v.sort(key=lambda x: (x["pdf_created"] or "", x["total"] or 0))
+        v.sort(key=lambda x: (x["doc_type"] == "invoice", x["pdf_created"] or "", x["total"] or 0))
         for k, x in enumerate(v):
             x["version"] = k + 1; x["versions_of_number"] = len(v); x["final"] = (k == len(v) - 1)
+            if x["final"] and any((y["total"] or 0) > (x["total"] or 0) for y in v[:-1]):
+                x["problems"].append("final version has LOWER total than an earlier version - confirm")
     json.dump(invs, open(os.path.join(OUT, "invoices.json"), "w"), separators=(",", ":"))
-    print(len(invs), "invoices;", sum(len(i["lines"]) for i in invs), "lines;",
+    print(len(invs), "files;", sum(1 for i in invs if i["final"]), "invoices;", sum(len(i["lines"]) for i in invs), "lines;",
           sum(1 for i in invs if i["problems"]), "with problems")
