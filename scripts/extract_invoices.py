@@ -5,7 +5,8 @@ import sys, glob, json, os, re, subprocess, collections, datetime
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from parse_bs import parse_bs
-SRC = os.path.join(ROOT, "All Invoice"); BS = os.path.join(SRC, "BS Fragrance"); OUT = os.path.join(ROOT, "data", "invoices")
+from parse_dewan import parse_dewan
+SRC = os.path.join(ROOT, "All Invoice"); BS = os.path.join(SRC, "BS Fragrance"); DEWAN = os.path.join(SRC, "Dewan"); OUT = os.path.join(ROOT, "data", "invoices")
 NUM = r"-?[\d,]*\.?\d+"
 LINE = re.compile(rf"^\s*({NUM})\s+(\S+)\s+(.*?)\s+({NUM})\s+({NUM})\s*$")
 PEND = re.compile(rf"^\s*({NUM})\s+(\S+)\s*$")           # qty + code, description/price on next line
@@ -72,6 +73,8 @@ if __name__ == "__main__":
         i["file"] = "All Invoice/" + i["file"]; invs.append(i)
     for p in sorted(glob.glob(os.path.join(BS, "*.pdf"))):
         invs.append(parse_bs(p, os.path.relpath(p, ROOT)))
+    for p in sorted(glob.glob(os.path.join(DEWAN, "*.PDF")) + glob.glob(os.path.join(DEWAN, "*.pdf"))):
+        invs.append(parse_dewan(p, os.path.relpath(p, ROOT)))
     # Same invoice number in several files = versions / copies of one invoice. Final version =
     # an invoice rather than a draft order, then latest PDF creation time, then larger total.
     groups = collections.defaultdict(list)
