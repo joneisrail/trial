@@ -7,7 +7,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from parse_bs import parse_bs
 from parse_dewan import parse_dewan
 from parse_pc import parse_pc
-SRC = os.path.join(ROOT, "All Invoice"); BS = os.path.join(SRC, "BS Fragrance"); DEWAN = os.path.join(SRC, "Dewan"); PC = os.path.join(SRC, "Perfume Center"); OUT = os.path.join(ROOT, "data", "invoices")
+from parse_others import parse_other
+SRC = os.path.join(ROOT, "All Invoice"); BS = os.path.join(SRC, "BS Fragrance"); DEWAN = os.path.join(SRC, "Dewan"); PC = os.path.join(SRC, "Perfume Center"); OTH = os.path.join(SRC, "Others"); OUT = os.path.join(ROOT, "data", "invoices")
 NUM = r"-?[\d,]*\.?\d+"
 LINE = re.compile(rf"^\s*({NUM})\s+(\S+)\s+(.*?)\s+({NUM})\s+({NUM})\s*$")
 PEND = re.compile(rf"^\s*({NUM})\s+(\S+)\s*$")           # qty + code, description/price on next line
@@ -78,6 +79,12 @@ if __name__ == "__main__":
         invs.append(parse_dewan(p, os.path.relpath(p, ROOT)))
     for p in sorted(glob.glob(os.path.join(PC, "*.pdf")) + glob.glob(os.path.join(PC, "*.PDF"))):
         invs.append(parse_pc(p, os.path.relpath(p, ROOT)))
+    unparsed = []
+    for p in sorted(glob.glob(os.path.join(OTH, "*.pdf")) + glob.glob(os.path.join(OTH, "*.PDF"))):
+        r = parse_other(p, os.path.relpath(p, ROOT))
+        if r: invs.append(r)
+        else: unparsed.append(os.path.relpath(p, ROOT))
+    for i in invs: i.setdefault("category", "nasima_purchase")
     # Same invoice number in several files = versions / copies of one invoice. Final version =
     # an invoice rather than a draft order, then latest PDF creation time, then larger total.
     groups = collections.defaultdict(list)
@@ -89,5 +96,10 @@ if __name__ == "__main__":
             if x["final"] and any((y["total"] or 0) > (x["total"] or 0) for y in v[:-1]):
                 x["problems"].append("final version has LOWER total than an earlier version - confirm")
     json.dump(invs, open(os.path.join(OUT, "invoices.json"), "w"), separators=(",", ":"))
+    # image-only supporting documents (no extractable text), read by eye
+    support = [{"file": "All Invoice/Others/Scentcity BOL.pdf", "title": "Bill of Lading 118841067, 15 May 2019: Niche Brands International (Houston TX) to Scent City (Plainview NY), UPS Freight, 1 pallet / 24 boxes / 1,190 lb",
+                "date": "2019-05-15", "relates_to": "Niche Brands invoice SR153194 (16 May 2019)"}]
+    assert [u for u in unparsed] == [x["file"] for x in support], unparsed
+    json.dump(support, open(os.path.join(OUT, "supporting.json"), "w"), indent=1)
     print(len(invs), "files;", sum(1 for i in invs if i["final"]), "invoices;", sum(len(i["lines"]) for i in invs), "lines;",
           sum(1 for i in invs if i["problems"]), "with problems")
