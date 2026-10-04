@@ -19,6 +19,9 @@ Static report (`index.html` + `data/`) built from the source documents in this r
 ## Hosting
 The site is plain static files: publish the repository root on GitHub Pages or Cloudflare Pages (no build step). The repository contains bank statements, customer order details and invoices – keep it **private** and protect the site (for example Cloudflare Access).
 
+## Report period (`data/scope.json`)
+The report is limited to the dates in `data/scope.json`: **sales and payouts 25 Jul 2018 – 31 Mar 2020**, **sourcing (supplier invoices) 1 Jul 2018 – 31 Mar 2020**. Sourcing starts earlier because goods sold were bought at least a month before. Change the dates there and run `scripts/rebuild.sh` (the page reads the same file). Documents outside the dates stay in the repository but are not counted.
+
 ## Rules the report follows
 * Every invoice number is counted once, using its final version (an invoice rather than a draft order, then the latest PDF creation time).
 * Documents billed to SCENTCITY (its own purchases) are shown for provenance and are not counted as Nasima purchases.

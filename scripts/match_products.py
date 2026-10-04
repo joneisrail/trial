@@ -15,10 +15,15 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from normalize import parse, VARIANTS
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
+def scope():
+    return json.load(open(os.path.join(ROOT, "data", "scope.json")))
+
 def load():
+    sc = scope()
     am = collections.defaultdict(lambda: {"units": 0, "sales": 0.0, "skus": set(), "rows": 0, "refund_rows": 0, "refund_amt": 0.0, "first": "9", "last": "0"})
     for f in sorted(glob.glob(os.path.join(ROOT, "data/amazon/lines/*.json"))):
         for r in json.load(open(f)):
+            if not (sc["sales_from"] <= r["d"] <= sc["sales_to"]): continue
             if r["type"] == "Order":
                 a = am[r["desc"]]; a["units"] += r["qty"]; a["sales"] += r["sales"]; a["rows"] += 1
                 if r["sku"]: a["skus"].add(r["sku"])
@@ -29,6 +34,7 @@ def load():
     pu = collections.defaultdict(lambda: {"units": 0.0, "amount": 0.0, "lines": 0, "suppliers": collections.Counter()})
     for i in inv:
         if not (i["final"] and i["category"] == "nasima_purchase"): continue
+        if not (sc["purchases_from"] <= i["iso_date"] <= sc["purchases_to"]): continue
         for x in i["lines"]:
             if x.get("non_merch") or not x["desc"].strip(): continue
             p = pu[x["desc"]]; p["units"] += x["qty"]; p["amount"] += x["amount"]; p["lines"] += 1; p["suppliers"][i["supplier"]] += x["qty"]
@@ -284,8 +290,10 @@ def build():
     # supplier-side aggregates per cluster
     sup_by_desc = {}
     inv = json.load(open(os.path.join(ROOT, "data/invoices/invoices.json")))
+    sc = scope()
     for i in inv:
         if not (i["final"] and i["category"] == "nasima_purchase"): continue
+        if not (sc["purchases_from"] <= i["iso_date"] <= sc["purchases_to"]): continue
         for x in i["lines"]:
             if x.get("non_merch") or not x["desc"].strip(): continue
             d = sup_by_desc.setdefault((x["desc"], i["supplier"]), {"units": 0.0, "amount": 0.0})
@@ -344,12 +352,14 @@ def build():
     sold = collections.defaultdict(list); refs = collections.defaultdict(list); buys = collections.defaultdict(list)
     for f in sorted(glob.glob(os.path.join(ROOT, "data/amazon/lines/*.json"))):
         for r in json.load(open(f)):
+            if not (sc["sales_from"] <= r["d"] <= sc["sales_to"]): continue
             pid = title_pid.get(r["desc"])
             if not pid: continue
             if r["type"] == "Order": sold[pid].append([r["d"], r["order"], r["qty"], r["sales"], r["src"], r["line"]])
             elif r["type"] == "Refund": refs[pid].append([r["d"], r["order"], r["total"], r["src"], r["line"]])
     for i in inv:
         if not (i["final"] and i["category"] == "nasima_purchase"): continue
+        if not (sc["purchases_from"] <= i["iso_date"] <= sc["purchases_to"]): continue
         for x in i["lines"]:
             pid = desc_pid.get(x["desc"])
             if pid and not x.get("non_merch"):

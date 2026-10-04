@@ -1,29 +1,29 @@
 {
- "products": 2268,
+ "products": 1600,
  "shard_size": 40,
  "status_counts": {
-  "matched_high": 179,
-  "matched_probable": 359,
-  "sold_no_invoice": 323,
-  "review": 130,
-  "sourced_not_sold": 1277
+  "matched_probable": 274,
+  "matched_high": 123,
+  "sold_no_invoice": 256,
+  "review": 102,
+  "sourced_not_sold": 845
  },
  "sold_units_by_status": {
-  "matched_high": 47384,
-  "matched_probable": 99539,
-  "sold_no_invoice": 14143,
-  "review": 7371,
+  "matched_probable": 65727,
+  "matched_high": 25994,
+  "sold_no_invoice": 11342,
+  "review": 6243,
   "sourced_not_sold": 0
  },
  "sourced_units_by_status": {
-  "matched_high": 28555,
-  "matched_probable": 63448,
+  "matched_probable": 48627,
+  "matched_high": 16408,
   "sold_no_invoice": 0,
   "review": 0,
-  "sourced_not_sold": 26497
+  "sourced_not_sold": 14947
  },
- "total_sold_units": 168437,
- "total_sourced_units": 118500,
- "amazon_titles": 1489,
- "supplier_descriptions": 2981
+ "total_sold_units": 109306,
+ "total_sourced_units": 79982,
+ "amazon_titles": 1055,
+ "supplier_descriptions": 1786
 }
