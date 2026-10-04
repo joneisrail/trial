@@ -156,7 +156,7 @@ async function buildPayouts(months){
 }
 document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('on',x===b));['sales','payouts','purchases','compare'].forEach(v=>$('#v-'+v).classList.toggle('hid',b.dataset.v!==v));if(b.dataset.v==='purchases'||b.dataset.v==='compare')loadInv()});
 let INV=null,invP=null;
-const pdfHref=(f,pg)=>encodeURI(f)+(pg?'#page='+pg:'');
+const pdfHref=(f,pg)=>f.split('/').map(encodeURIComponent).join('/')+(pg?'#page='+pg:'');
 const SUP={'SCENTCITY INC':'SCENTCITY','B&S FRAGRANCES AND COSMETICS INC.':'B&S','DEWAN FRAGRANCES INC':'DEWAN','PERFUME CENTER OF AMERICA':'PCA'};
 const units=i=>i.lines.filter(x=>!x.non_merch).reduce((a,x)=>a+x.qty,0);
 function loadInv(){if(!invP)invP=fetch('data/invoices/invoices.json').then(r=>r.json()).then(d=>{INV=d;buildPurchases();buildCompare()});return invP}
