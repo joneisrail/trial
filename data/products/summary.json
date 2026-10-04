@@ -1,0 +1,29 @@
+{
+ "products": 2268,
+ "shard_size": 40,
+ "status_counts": {
+  "matched_high": 179,
+  "matched_probable": 359,
+  "sold_no_invoice": 323,
+  "review": 130,
+  "sourced_not_sold": 1277
+ },
+ "sold_units_by_status": {
+  "matched_high": 47384,
+  "matched_probable": 99539,
+  "sold_no_invoice": 14143,
+  "review": 7371,
+  "sourced_not_sold": 0
+ },
+ "sourced_units_by_status": {
+  "matched_high": 28555,
+  "matched_probable": 63448,
+  "sold_no_invoice": 0,
+  "review": 0,
+  "sourced_not_sold": 26497
+ },
+ "total_sold_units": 168437,
+ "total_sourced_units": 118500,
+ "amazon_titles": 1489,
+ "supplier_descriptions": 2981
+}
