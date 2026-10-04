@@ -58,10 +58,11 @@ tr.outside td{color:var(--mute);font-style:italic}
 <body>
 <header>
  <h1>Amazon Sales &amp; Supplier Purchases Report — Nasima Perfume NYC Inc <span class="badge">DRAFT – supplier invoices incomplete</span></h1>
+ <div class="sub" id="scopeline" style="margin-bottom:6px"></div>
  <div class="sub">Built from Amazon “Monthly Unified Transaction” reports and supplier invoices. Click a month to see days, a day to see transactions or invoices. Every figure links to its source file (CSV line or PDF page). <button class="chip" onclick="window.print()" style="margin-left:8px">Print / save as PDF</button></div>
 </header>
 <main>
- <div class="tabs"><button class="tab on" data-v="summary">Summary</button><button class="tab" data-v="sales">Sales by month</button><button class="tab" data-v="period" id="periodtab">Sales Aug 2018 – Mar 2020</button><button class="tab" data-v="payouts">Payouts to bank</button><button class="tab" data-v="purchases">Purchases (supplier invoices)</button><button class="tab" data-v="compare">Units: sold vs purchased</button><button class="tab" data-v="products">Products (matched)</button></div>
+ <div class="tabs"><button class="tab on" data-v="summary">Summary</button><button class="tab" data-v="sales">Sales by month</button><button class="tab" data-v="payouts">Payouts to bank</button><button class="tab" data-v="purchases">Purchases (supplier invoices)</button><button class="tab" data-v="compare">Units: sold vs purchased</button><button class="tab" data-v="products">Products (matched)</button></div>
  <div id="v-summary">
   <div class="cards" id="scards"></div>
   <div id="sblocks"></div>
@@ -76,14 +77,6 @@ tr.outside td{color:var(--mute);font-style:italic}
    <th>Month</th><th>Orders</th><th>Units sold</th><th title="Item price only; excludes shipping and tax">Product sales</th><th>Shipping credits</th><th title="Selling fees, shipping labels and other Amazon fees">Amazon fees</th><th>Refunds (#)</th><th>Refunds ($)</th><th title="Money Amazon transferred to the bank account">Paid to bank</th><th title="Change in Amazon balance (all rows summed). Not profit.">Net balance change</th><th>Source file</th>
   </tr></thead><tbody id="tb"></tbody></table></div>
   <div class="legend">Dates are Amazon's Pacific time as printed. Units = quantity on order rows. Refund rows carry no quantity, so refunds are shown in dollars. “Net balance change” is not profit: it is the sum of every Amazon row, and differs from payouts when money is held or released across months.</div>
- </div>
- <div id="v-period" class="hid">
-  <div class="chips" style="margin:6px 0 10px"><span class="sub">Period:</span> from <input type="date" id="pfromd" class="chip"> to <input type="date" id="ptod" class="chip"> <span class="sub">Default: 29 Jul 2018 (first Amazon payout to the Capital One account) to 31 Mar 2020 (last month with orders). July 1–28 is shown greyed for reference and is not in the totals.</span></div>
-  <div class="cards" id="pdcards"></div>
-  <div class="wrap"><table id="ptbl2"><thead><tr>
-   <th>Month</th><th>Orders</th><th>Units sold</th><th title="Item price only; excludes shipping and tax">Product sales</th><th>Shipping credits</th><th>Amazon fees</th><th>Refunds (#)</th><th>Refunds ($)</th><th title="Money Amazon transferred to the bank account">Paid to bank</th><th title="Change in Amazon balance (all rows summed). Not profit.">Net balance change</th><th>Source file</th>
-  </tr></thead><tbody id="tb2"></tbody></table></div>
-  <div class="legend">Same definitions as “Sales by month”. Click a month for its days and a day for every transaction (each row links to its source CSV line). Dates are Amazon's Pacific time.</div>
  </div>
  <div id="v-payouts" class="hid">
   <div class="wrap"><table id="ptbl"><thead><tr><th>Date</th><th>Bank account (last digits)</th><th>Amount paid</th><th>Settlement ID</th><th>Description</th><th>Source</th></tr></thead><tbody id="ptb"></tbody></table></div>
@@ -125,22 +118,37 @@ const srcFile=m=>m.slice(0,4)+MN[+m.slice(5)-1]+'MonthlyUnifiedTransaction.csv';
 const srcHref=f=>'Nasima report Amazon/'+encodeURIComponent(f);
 const dec=s=>{const t=document.createElement('textarea');t.innerHTML=s;return t.value};
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-let S={},cache={};
+let S={},cache={},SC=null,PART={};
+const dlab=d=>{const [y,m,dd]=d.split('-');return +dd+' '+MN[+m-1]+' '+y};
+const eom=m=>{const [y,mo]=m.split('-');return m+'-'+String(new Date(+y,+mo,0).getDate()).padStart(2,'0')};
+function scopeSummary(sm){
+ const out={};PART={};
+ Object.keys(sm).sort().forEach(m=>{
+  const days=Object.entries(sm[m].days).filter(([d])=>d>=SC.sales_from&&d<=SC.sales_to);
+  if(!days.length)return;
+  const o={};days.forEach(([d,t])=>o[d]=t);
+  const t={};KEYS.forEach(k=>t[k]=0);days.forEach(([,x])=>KEYS.forEach(k=>t[k]+=x[k]));KEYS.forEach(k=>t[k]=Math.round(t[k]*100)/100);
+  out[m]={totals:t,days:o};
+  const f=days[0][0],l=days[days.length-1][0];
+  if(SC.sales_from>m+'-01'||SC.sales_to<eom(m))PART[m]=(+f.slice(8))+'–'+(+l.slice(8))+' '+MN[+m.slice(5)-1];
+ });
+ return out}
+const mlabel=m=>mname(m)+(PART[m]?' <span class="sub">('+PART[m]+' only)</span>':'');
 async function lines(m){if(!cache[m]){const r=await fetch('data/amazon/lines/'+m+'.json');cache[m]=await r.json()}return cache[m]}
 const KEYS=['orders','units','sales','shipcr','fees','refunds','refund_amt','payouts','net'];
 function cells(t){return `<td>${fi(t.orders)}</td><td>${fi(t.units)}</td><td>${fm(t.sales)}</td><td>${fm(t.shipcr)}</td><td>${fc(t.fees)}</td><td>${fi(t.refunds)}</td><td>${fc(t.refund_amt)}</td><td>${fm(t.payouts)}</td><td>${fc(t.net)}</td>`}
 function sum(list){const t={};KEYS.forEach(k=>t[k]=0);list.forEach(x=>KEYS.forEach(k=>t[k]+=x[k]));KEYS.forEach(k=>t[k]=Math.round(t[k]*100)/100);return t}
 async function init(){
- const [sm,ch]=await Promise.all([fetch('data/amazon/summary.json').then(r=>r.json()),fetch('data/amazon/checks.json').then(r=>r.json())]);
- S=sm;const months=Object.keys(S).sort();
+ const [sm,ch,sc]=await Promise.all([fetch('data/amazon/summary.json').then(r=>r.json()),fetch('data/amazon/checks.json').then(r=>r.json()),fetch('data/scope.json').then(r=>r.json())]);
+ SC=sc;S=scopeSummary(sm);$('#scopeline').innerHTML=`<b>Report period:</b> sales ${dlab(SC.sales_from)} – ${dlab(SC.sales_to)} · sourcing (supplier invoices) ${dlab(SC.purchases_from)} – ${dlab(SC.purchases_to)}. Sourcing starts earlier because goods sold were bought at least a month before. Documents outside these dates are in the repository but not counted.`;
+ const months=Object.keys(S).sort();
  const all=sum(months.map(m=>S[m].totals));
- $('#cards').innerHTML=[['Units sold',fi(all.units)],['Product sales',fm(all.sales)],['Paid to bank by Amazon',fm(all.payouts)],['Orders',fi(all.orders)],['Refunds',fi(all.refunds)+' ('+fm(all.refund_amt)+')'],['Period',ch.first_date+' → '+ch.last_date]].map(([k,v])=>`<div class="card"><div class="k">${k}</div><div class="v">${v}</div></div>`).join('');
- $('#note').innerHTML=`<b>Data notes.</b> ${fi(ch.total_rows_written)} rows loaded from ${ch.files.length} CSV files; every row's columns add up to its total (${ch.rows_where_components_ne_total} mismatches); ${ch.identical_row_groups_kept} groups of identical rows are kept, not removed. Orders and payouts stop in Mar 2020; Apr–Dec 2020 contain only refunds, label credits and two adjustments (see Dec 9, 2020: “Adjustment – Other”).`;
+ $('#cards').innerHTML=[['Units sold',fi(all.units)],['Product sales',fm(all.sales)],['Paid to bank by Amazon',fm(all.payouts)],['Orders',fi(all.orders)],['Refunds',fi(all.refunds)+' ('+fm(all.refund_amt)+')'],['Report period',dlab(SC.sales_from)+' → '+dlab(SC.sales_to)]].map(([k,v])=>`<div class="card"><div class="k">${k}</div><div class="v">${v}</div></div>`).join('');
+ $('#note').innerHTML=`<b>Data notes.</b> ${fi(ch.total_rows_written)} rows in ${ch.files.length} CSV files were read; every row's columns add up to its total (${ch.rows_where_components_ne_total} mismatches); ${ch.identical_row_groups_kept} groups of identical rows are kept, not removed. Only rows dated inside the report period are shown here; the full files also contain rows from Jan 2017 to Jul 2018 and Apr–Dec 2020.`;
  monthTable($('#tb'),segsFor(months));
- initPeriod(months);
  buildPayouts(months);
 }
-function segsFor(months){return months.map(m=>({m,label:mname(m),totals:S[m].totals,from:'',to:'',outside:false}))}
+function segsFor(months){return months.map(m=>({m,label:mlabel(m),totals:S[m].totals,from:'',to:'',outside:false}))}
 function monthTable(tb,segs,totalLabel){
  let html='',yr=null,ym=[];
  const flushYear=()=>{if(yr){html+=`<tr class="y"><td>${yr} total</td>${cells(sum(ym))}<td></td></tr>`}};
@@ -151,31 +159,6 @@ function monthTable(tb,segs,totalLabel){
  flushYear();html+=`<tr class="tot"><td>${totalLabel||'Grand total'}</td>${cells(sum(inc.map(x=>x.totals)))}<td></td></tr>`;
  tb.innerHTML=html;
  if(!tb.dataset.bound){tb.addEventListener('click',onClick);tb.dataset.bound='1'}
-}
-const dlab=d=>{const [y,m,dd]=d.split('-');return +dd+' '+MN[+m-1]+' '+y};
-function initPeriod(all){
- const real=all.filter(m=>S[m].totals.orders>0||S[m].totals.units>0);
- const lastMonth=real.length?real[real.length-1]:all[all.length-1];
- const lastDay=Object.keys(S[lastMonth].days).sort().pop();
- const eom=m=>{const [y,mo]=m.split('-');return m+'-'+String(new Date(+y,+mo,0).getDate()).padStart(2,'0')};
- $('#pfromd').value='2018-07-29';$('#ptod').value=eom(lastMonth);
- const draw=()=>{
-  let a=$('#pfromd').value||'2018-07-29',b=$('#ptod').value||eom(lastMonth);if(a>b){[a,b]=[b,a]}
-  const segs=[],am=a.slice(0,7),bm=b.slice(0,7);
-  all.filter(m=>m>=am&&m<=bm).forEach(m=>{
-   const days=Object.entries(S[m].days);
-   const inR=days.filter(([d])=>d>=a&&d<=b),partialStart=m===am&&a>m+'-01',partialEnd=m===bm&&b<eom(m);
-   if(partialStart){const pre=days.filter(([d])=>d<a);
-    if(pre.length)segs.push({m,label:mname(m)+' · '+dlab(m+'-01').split(' ')[0]+'–'+(+a.slice(8)-1)+' '+MN[+m.slice(5)-1]+' <span class="sub">(before the period; not in totals)</span>',totals:sum(pre.map(([,t])=>t)),from:m+'-01',to:a.slice(0,8)+String(+a.slice(8)-1).padStart(2,'0'),outside:true})}
-   if(partialStart||partialEnd){const f=partialStart?a:m+'-01',t=partialEnd?b:eom(m);
-    segs.push({m,label:mname(m)+' · '+(+f.slice(8))+'–'+(+t.slice(8))+' '+MN[+m.slice(5)-1],totals:sum(inR.map(([,t])=>t)),from:f,to:t,outside:false})}
-   else segs.push({m,label:mname(m),totals:S[m].totals,from:'',to:'',outside:false})});
-  const t=sum(segs.filter(x=>!x.outside).map(x=>x.totals));
-  $('#periodtab').textContent='Sales '+dlab(a)+' – '+dlab(b);
-  $('#pdcards').innerHTML=[['Period',dlab(a)+' – '+dlab(b)],['Units sold',fi(t.units)],['Orders',fi(t.orders)],['Product sales',fm(t.sales)],['Refunds',fi(t.refunds)+' ('+fm(t.refund_amt)+')'],['Paid to bank by Amazon',fm(t.payouts)]].map(([k,v])=>`<div class="card"><div class="k">${k}</div><div class="v" style="font-size:18px">${v}</div></div>`).join('');
-  monthTable($('#tb2'),segs,'Total '+dlab(a)+' – '+dlab(b));
- };
- $('#pfromd').onchange=draw;$('#ptod').onchange=draw;draw();
 }
 function toggleRows(tr,cls,build){
  const nxt=tr.nextElementSibling;
@@ -214,17 +197,17 @@ function renderLines(lr,rows){
  draw('Orders');
 }
 async function buildPayouts(months){
- let all=[];for(const m of months){const rows=await lines(m);rows.forEach(r=>{if(r.type==='Transfer')all.push(r)})}
+ let all=[];for(const m of months){const rows=await lines(m);rows.forEach(r=>{if(r.type==='Transfer'&&r.d>=SC.sales_from&&r.d<=SC.sales_to)all.push(r)})}
  const byAcct={};all.forEach(r=>byAcct[r.acct||'?']=(byAcct[r.acct||'?']||0)+(-r.total));
  $('#ptb').innerHTML=all.map(r=>`<tr><td>${r.d}</td><td>…${esc(r.acct||'?')}</td><td>${fm(-r.total)}</td><td>${esc(r.settle)}</td><td style="text-align:left;white-space:normal">${esc(dec(r.desc))}</td><td style="text-align:left"><a class="src" href="${srcHref(r.src)}">${esc(r.src.replace('MonthlyUnifiedTransaction','')).replace('.csv','')} : line ${r.line}</a></td></tr>`).join('');
  $('#pleg').textContent=all.length+' payouts. By bank account: '+Object.entries(byAcct).map(([a,v])=>'…'+a+' = '+fm(v)).join(' · ');
 }
-document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('on',x===b));['summary','sales','period','payouts','purchases','compare','products'].forEach(v=>$('#v-'+v).classList.toggle('hid',b.dataset.v!==v));if(b.dataset.v==='purchases'||b.dataset.v==='compare')loadInv();if(b.dataset.v==='summary')loadSummary();if(b.dataset.v==='products')loadProducts()});
+document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('on',x===b));['summary','sales','payouts','purchases','compare','products'].forEach(v=>$('#v-'+v).classList.toggle('hid',b.dataset.v!==v));if(b.dataset.v==='purchases'||b.dataset.v==='compare')loadInv();if(b.dataset.v==='summary')loadSummary();if(b.dataset.v==='products')loadProducts()});
 let INV=null,invP=null;
 const pdfHref=(f,pg)=>f.split('/').map(encodeURIComponent).join('/')+(pg?'#page='+pg:'');
 const SUP={'SCENTCITY INC':'SCENTCITY','B&S FRAGRANCES AND COSMETICS INC.':'B&S','DEWAN FRAGRANCES INC':'DEWAN','PERFUME CENTER OF AMERICA':'PCA','PERFUME NETWORK INC':'PNI'};
 const units=i=>i.lines.filter(x=>!x.non_merch).reduce((a,x)=>a+x.qty,0);
-function loadInv(){if(!invP)invP=fetch('data/invoices/invoices.json').then(r=>r.json()).then(d=>{INV=d;buildPurchases();buildCompare();buildUpstream()});return invP}
+function loadInv(){if(!invP)invP=fetch('data/invoices/invoices.json').then(r=>r.json()).then(d=>{INV=d.filter(i=>i.category!=='nasima_purchase'||(i.iso_date>=SC.purchases_from&&i.iso_date<=SC.purchases_to));buildPurchases();buildCompare();buildUpstream()});return invP}
 function buildPurchases(){
  const fin=INV.filter(i=>i.final&&i.category==='nasima_purchase'),byM={};
  fin.forEach(i=>{(byM[i.iso_date.slice(0,7)]=byM[i.iso_date.slice(0,7)]||[]).push(i)});
@@ -270,7 +253,7 @@ function buildCompare(){
  INV.filter(i=>i.final&&i.category==='nasima_purchase').forEach(i=>{const k=i.iso_date.slice(0,7);pm[k]=(pm[k]||0)+units(i)});
  const keys=[...new Set([...months,...Object.keys(pm)])].sort();let cs=0,cp=0,h='';
  keys.forEach(k=>{const so=S[k]?S[k].totals.units:0,pu=pm[k]||0;cs+=so;cp+=pu;
-  h+=`<tr><td>${mname(k)}</td><td>${fi(so)}</td><td>${fi(pu)}</td><td>${fc2(pu-so)}</td><td>${fi(cs)}</td><td>${fi(cp)}</td><td>${fc2(cp-cs)}</td></tr>`});
+  h+=`<tr><td>${mlabel(k)}</td><td>${fi(so)}</td><td>${fi(pu)}</td><td>${fc2(pu-so)}</td><td>${fi(cs)}</td><td>${fi(cp)}</td><td>${fc2(cp-cs)}</td></tr>`});
  h+=`<tr class="tot"><td>Total</td><td>${fi(cs)}</td><td>${fi(cp)}</td><td>${fc2(cp-cs)}</td><td></td><td></td><td></td></tr>`;
  $('#ctb').innerHTML=h;
 }
@@ -288,16 +271,17 @@ function buildSummary(meta,ps){
  <div class="note"><b>Status of this report.</b> Draft prepared from the documents uploaded so far${meta.generated_utc?' (generated '+esc(meta.generated_utc)+')':''}. <b>Some supplier invoices exist only as paper copies and are not yet included, so the purchase figures below are a minimum, not a complete total.</b> They will be scanned and added; the report is rebuilt from the source documents each time.</div>
  <h3 style="margin:16px 0 6px;font-size:15px">What the figures mean</h3>
  <div class="wrap"><table style="min-width:0"><tbody>
-  <tr><td style="text-align:left"><b>Units sold</b></td><td style="text-align:left;white-space:normal">Quantity on Amazon order rows (amazon.com, seller-fulfilled), ${all.orders?fi(all.orders)+' orders, ':''}Jan 2017 – Mar 2020. Refund rows carry no quantity, so refunds (${fi(all.refunds)}, ${fm(all.refund_amt)}) are shown in dollars only.</td></tr>
+  <tr><td style="text-align:left"><b>Units sold</b></td><td style="text-align:left;white-space:normal">Quantity on Amazon order rows (amazon.com, seller-fulfilled), ${all.orders?fi(all.orders)+' orders, ':''}${dlab(SC.sales_from)} – ${dlab(SC.sales_to)}. Refund rows carry no quantity, so refunds (${fi(all.refunds)}, ${fm(all.refund_amt)}) are shown in dollars only.</td></tr>
   <tr><td style="text-align:left"><b>Amazon product sales</b></td><td style="text-align:left;white-space:normal">Item price only, before shipping credits, tax, fees and refunds.</td></tr>
   <tr><td style="text-align:left"><b>Paid to bank by Amazon</b></td><td style="text-align:left;white-space:normal">Amazon's own “Transfer” records to the bank accounts ending 6276, 738 and 221. See the Payouts tab. Matching these to the bank statements in the repository is a separate step not yet shown here.</td></tr>
-  <tr><td style="text-align:left"><b>Units / purchases on invoices</b></td><td style="text-align:left;white-space:normal">Supplier invoice lines for ${fin.length} distinct invoices from 5 suppliers (SCENTCITY INC, B&amp;S Fragrances, Dewan Fragrances, Perfume Center of America, Perfume Network), Jun 2017 – Nov 2019. Each invoice number is counted once, using its final version.</td></tr>
+  <tr><td style="text-align:left"><b>Units / purchases on invoices</b></td><td style="text-align:left;white-space:normal">Supplier invoice lines for ${fin.length} distinct invoices from 5 suppliers (SCENTCITY INC, B&amp;S Fragrances, Dewan Fragrances, Perfume Center of America, Perfume Network) dated ${dlab(fin.map(i=>i.iso_date).sort()[0])} – ${dlab(fin.map(i=>i.iso_date).sort().slice(-1)[0])}, inside the sourcing window. Each invoice number is counted once, using its final version.</td></tr>
  </tbody></table></div>
  <h3 style="margin:16px 0 6px;font-size:15px">What this report does not yet include / items to confirm</h3>
  <div class="wrap"><table style="min-width:0"><tbody>
   <tr><td style="text-align:left"><b>Paper invoices</b></td><td style="text-align:left;white-space:normal">Invoices supplied only as hard copy are not yet scanned. Until they are added, units sold exceed units sourced (${fi(all.units-pu)} units overall) and this gap should <u>not</u> be read as units sold without a supplier.</td></tr>
   <tr><td style="text-align:left"><b>Bank statements</b></td><td style="text-align:left;white-space:normal">${fi((meta.documents||{})['Bank statements and payment cheque (PDF)']||0)} bank statement / cheque PDFs are on file but are not yet reconciled to Amazon payouts or to supplier payments.</td></tr>
-  <tr><td style="text-align:left"><b>Amazon data gaps</b></td><td style="text-align:left;white-space:normal">No Amazon report for Dec 2016 (payouts began Dec 2016). Orders and payouts stop in Mar 2020. A single adjustment of <b>-$104,600.03</b> (type “Adjustment – Other”) is dated 9 Dec 2020 and is unexplained in the data (open Dec 2020 on the Sales tab).</td></tr>
+  <tr><td style="text-align:left"><b>Amazon data gaps</b></td><td style="text-align:left;white-space:normal">The report covers only the period above. Outside it, Amazon's files contain earlier activity (Jan 2017 – 24 Jul 2018) and, after Mar 2020, only refunds, label credits and a single adjustment of <b>-$104,600.03</b> (type “Adjustment – Other”) dated 9 Dec 2020, which is unexplained in the data and is <u>outside</u> this period. The 25 Jul 2018 payout ($9,060.59) went to the old account ending 6276; the first payout to Capital One (ending 738) was 29 Jul 2018.</td></tr>
+  <tr><td style="text-align:left"><b>Earlier stock</b></td><td style="text-align:left;white-space:normal">Goods bought before 1 Jul 2018 and sold inside the period are not counted as sourcing, so “sold − sourced” can be overstated for items with older stock.</td></tr>
   <tr><td style="text-align:left"><b>Invoice to confirm</b></td><td style="text-align:left;white-space:normal">B&amp;S Fragrances invoice 00025195 exists as two files with different totals ($8,896.50 and $8,782.50); the later file ($8,782.50) is used.</td></tr>
   <tr><td style="text-align:left"><b>Supply-chain documents excluded</b></td><td style="text-align:left;white-space:normal">${up.length} invoices billed to SCENTCITY (${fm(upt)}) are Scentcity's own purchases from its suppliers. They are listed on the Purchases tab for provenance and are <u>not</u> counted as Nasima purchases.</td></tr>
   <tr><td style="text-align:left"><b>Product matching</b></td><td style="text-align:left;white-space:normal">${sold?`Automatic name/size matching: ${fi(sold.matched_high)} units sold matched with high confidence, ${fi(sold.matched_probable)} probable, ${fi(sold.review)} need review, ${fi(sold.sold_no_invoice)} have no similar invoice product. Pack sizes in titles (e.g. “Pack of 2”) are not applied.`:'See Products tab.'}</td></tr>
@@ -312,7 +296,7 @@ function buildSummary(meta,ps){
   const t=S[k]?S[k].totals:{units:0,sales:0,payouts:0},b=by[k]||{u:0,t:0};
   const o={s:t.units,sa:t.sales,po:t.payouts,u:b.u,pt:Math.round(b.t*100)/100};cs+=o.s;cp+=o.u;
   [ym,T].forEach(x=>{x.u+=o.u;x.s+=o.s;x.sa+=o.sa;x.po+=o.po;x.pt+=o.pt});
-  h+=`<tr class="m" data-go="${k}"><td><span class="car">▶</span>${mname(k)}</td>${row('',o)}<td>${fc2(cp-cs)}</td></tr>`});
+  h+=`<tr class="m" data-go="${k}"><td><span class="car">▶</span>${mlabel(k)}</td>${row('',o)}<td>${fc2(cp-cs)}</td></tr>`});
  flush();h+=`<tr class="tot"><td>Grand total</td>${row('',T)}<td>${fc2(cp-cs)}</td></tr>`;
  $('#stb').innerHTML=h;
  $('#stb').addEventListener('click',e=>{const tr=e.target.closest('tr[data-go]');if(!tr)return;document.querySelector('.tab[data-v=sales]').click();const r=document.querySelector(`#tb tr.m[data-m="${tr.dataset.go}"]`);if(r){r.scrollIntoView();if(!r.classList.contains('open'))r.click()}})
