@@ -1,0 +1,15 @@
+.git
+**/.git
+.github
+.claude
+.gitignore
+.assetsignore
+scripts
+README.md
+wrangler.jsonc
+wrangler.toml
+node_modules
+**/node_modules
+**/__pycache__
+**/.DS_Store
+**/test.txt
