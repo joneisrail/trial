@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:,">
+<title>Amazon Sales Report – Nasima Perfume</title>
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--ink:#1b2430;--mute:#667085;--line:#e4e7ec;--acc:#0b5fff;--neg:#b42318;--pos:#067647;--hl:#eef4ff;--warn:#fff6e0}
+@media (prefers-color-scheme:dark){:root{--bg:#10151c;--card:#171e28;--ink:#e6eaf0;--mute:#98a2b3;--line:#2a3340;--acc:#6ea0ff;--neg:#ff8b7e;--pos:#5fd39a;--hl:#1c2740;--warn:#2b2412}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+header{padding:20px 16px 8px;max-width:1280px;margin:0 auto}
+h1{font-size:20px;margin:0 0 4px}
+.sub{color:var(--mute)}
+main{max-width:1280px;margin:0 auto;padding:0 16px 40px}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin:14px 0}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+.card .k{color:var(--mute);font-size:12px}.card .v{font-size:20px;font-weight:650;margin-top:2px}
+.note{background:var(--warn);border:1px solid var(--line);border-radius:10px;padding:10px 14px;margin:10px 0;font-size:13px}
+.note b{font-weight:650}
+.wrap{background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:auto}
+table{border-collapse:collapse;width:100%;min-width:900px}
+th,td{padding:7px 10px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+th{position:sticky;top:0;background:var(--card);font-size:12px;color:var(--mute);font-weight:600;z-index:1}
+th:first-child,td:first-child{text-align:left}
+tr.m{cursor:pointer}tr.m:hover{background:var(--hl)}
+tr.d{cursor:pointer;background:color-mix(in srgb,var(--hl) 40%,transparent)}tr.d:hover{background:var(--hl)}
+tr.d td:first-child{padding-left:34px}
+tr.y td{font-weight:650;background:var(--hl)}
+tr.tot td{font-weight:700;border-top:2px solid var(--ink)}
+.car{display:inline-block;width:14px;color:var(--mute);transition:transform .15s}
+.open>td:first-child .car{transform:rotate(90deg)}
+.neg{color:var(--neg)}.pos{color:var(--pos)}
+td.lines{padding:0;text-align:left;white-space:normal;background:var(--bg)}
+.lw{padding:10px 12px 12px 34px;overflow:auto}
+.chips{margin-bottom:8px;display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.chip{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:99px;padding:3px 10px;font-size:12px;cursor:pointer}
+.chip.on{background:var(--acc);color:#fff;border-color:var(--acc)}
+table.l{min-width:1000px;font-size:12.5px}
+table.l td,table.l th{padding:4px 8px}
+table.l th:nth-child(-n+5){text-align:left}
+table.l td.t{text-align:left;white-space:normal;max-width:380px;min-width:200px}
+table.l td.s{text-align:left}
+a{color:var(--acc);text-decoration:none}a:hover{text-decoration:underline}
+.src{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11.5px}
+.tabs{display:flex;gap:6px;margin:16px 0 10px}
+.tab{border:1px solid var(--line);background:var(--card);color:var(--ink);padding:6px 14px;border-radius:8px;cursor:pointer;font-size:13px}
+.tab.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.hid{display:none}
+.legend{color:var(--mute);font-size:12px;margin:8px 2px}
+@media(max-width:600px){h1{font-size:17px}}
+</style>
+</head>
+<body>
+<header>
+ <h1>Amazon Sales Report — Nasima Perfume NYC Inc</h1>
+ <div class="sub">Source: Amazon “Monthly Unified Transaction” reports (amazon.com, seller-fulfilled). Click a month to see days, a day to see every transaction. Every row links to its source CSV file and line number.</div>
+</header>
+<main>
+ <div class="cards" id="cards"></div>
+ <div class="note" id="note"></div>
+ <div class="tabs"><button class="tab on" data-v="sales">Sales by month</button><button class="tab" data-v="payouts">Payouts to bank</button></div>
+ <div id="v-sales">
+  <div class="wrap"><table id="tbl"><thead><tr>
+   <th>Month</th><th>Orders</th><th>Units sold</th><th title="Item price only; excludes shipping and tax">Product sales</th><th>Shipping credits</th><th title="Selling fees, shipping labels and other Amazon fees">Amazon fees</th><th>Refunds (#)</th><th>Refunds ($)</th><th title="Money Amazon transferred to the bank account">Paid to bank</th><th title="Change in Amazon balance (all rows summed). Not profit.">Net balance change</th><th>Source file</th>
+  </tr></thead><tbody id="tb"></tbody></table></div>
+  <div class="legend">Dates are Amazon's Pacific time as printed. Units = quantity on order rows. Refund rows carry no quantity, so refunds are shown in dollars. “Net balance change” is not profit: it is the sum of every Amazon row, and differs from payouts when money is held or released across months.</div>
+ </div>
+ <div id="v-payouts" class="hid">
+  <div class="wrap"><table id="ptbl"><thead><tr><th>Date</th><th>Bank account (last digits)</th><th>Amount paid</th><th>Settlement ID</th><th>Description</th><th>Source</th></tr></thead><tbody id="ptb"></tbody></table></div>
+  <div class="legend" id="pleg"></div>
+ </div>
+</main>
+<script>
+const $=s=>document.querySelector(s);
+const fm=n=>{const s=Math.abs(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});return (n<0?'-':'')+'$'+s};
+const fc=n=>(n<0?'<span class="neg">'+fm(n)+'</span>':fm(n));
+const fi=n=>n.toLocaleString('en-US');
+const MN=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const mname=m=>MN[+m.slice(5)-1]+' '+m.slice(0,4);
+const srcFile=m=>m.slice(0,4)+MN[+m.slice(5)-1]+'MonthlyUnifiedTransaction.csv';
+const srcHref=f=>'Nasima report Amazon/'+encodeURIComponent(f);
+const dec=s=>{const t=document.createElement('textarea');t.innerHTML=s;return t.value};
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+let S={},cache={};
+async function lines(m){if(!cache[m]){const r=await fetch('data/amazon/lines/'+m+'.json');cache[m]=await r.json()}return cache[m]}
+const KEYS=['orders','units','sales','shipcr','fees','refunds','refund_amt','payouts','net'];
+function cells(t){return `<td>${fi(t.orders)}</td><td>${fi(t.units)}</td><td>${fm(t.sales)}</td><td>${fm(t.shipcr)}</td><td>${fc(t.fees)}</td><td>${fi(t.refunds)}</td><td>${fc(t.refund_amt)}</td><td>${fm(t.payouts)}</td><td>${fc(t.net)}</td>`}
+function sum(list){const t={};KEYS.forEach(k=>t[k]=0);list.forEach(x=>KEYS.forEach(k=>t[k]+=x[k]));KEYS.forEach(k=>t[k]=Math.round(t[k]*100)/100);return t}
+async function init(){
+ const [sm,ch]=await Promise.all([fetch('data/amazon/summary.json').then(r=>r.json()),fetch('data/amazon/checks.json').then(r=>r.json())]);
+ S=sm;const months=Object.keys(S).sort();
+ const all=sum(months.map(m=>S[m].totals));
+ $('#cards').innerHTML=[['Units sold',fi(all.units)],['Product sales',fm(all.sales)],['Paid to bank by Amazon',fm(all.payouts)],['Orders',fi(all.orders)],['Refunds',fi(all.refunds)+' ('+fm(all.refund_amt)+')'],['Period',ch.first_date+' → '+ch.last_date]].map(([k,v])=>`<div class="card"><div class="k">${k}</div><div class="v">${v}</div></div>`).join('');
+ $('#note').innerHTML=`<b>Data notes.</b> ${fi(ch.total_rows_written)} rows loaded from ${ch.files.length} CSV files; every row's columns add up to its total (${ch.rows_where_components_ne_total} mismatches); ${ch.identical_row_groups_kept} groups of identical rows are kept, not removed. Orders and payouts stop in Mar 2020; Apr–Dec 2020 contain only refunds, label credits and two adjustments (see Dec 9, 2020: “Adjustment – Other”).`;
+ const tb=$('#tb');let html='',yr=null,ym=[];
+ const flushYear=()=>{if(yr){html+=`<tr class="y"><td>${yr} total</td>${cells(sum(ym))}<td></td></tr>`}};
+ months.forEach(m=>{const y=m.slice(0,4);if(y!==yr){flushYear();yr=y;ym=[]}ym.push(S[m].totals);
+  html+=`<tr class="m" data-m="${m}"><td><span class="car">▶</span>${mname(m)}</td>${cells(S[m].totals)}<td><a href="${srcHref(srcFile(m))}" onclick="event.stopPropagation()" class="src">${srcFile(m).replace('MonthlyUnifiedTransaction','')}</a></td></tr>`});
+ flushYear();html+=`<tr class="tot"><td>Grand total</td>${cells(all)}<td></td></tr>`;tb.innerHTML=html;
+ tb.addEventListener('click',onClick);
+ buildPayouts(months);
+}
+function toggleRows(tr,cls,build){
+ const nxt=tr.nextElementSibling;
+ if(tr.classList.contains('open')){tr.classList.remove('open');while(tr.nextElementSibling&&tr.nextElementSibling.dataset.p===tr.dataset.id)tr.nextElementSibling.remove();return}
+ tr.classList.add('open');build(tr)
+}
+function onClick(e){
+ const tr=e.target.closest('tr');if(!tr||e.target.closest('a,button'))return;
+ if(tr.classList.contains('m')){
+  const m=tr.dataset.m;tr.dataset.id=m;
+  if(tr.classList.contains('open')){tr.classList.remove('open');[...document.querySelectorAll(`[data-p="${m}"]`)].forEach(x=>x.remove());return}
+  tr.classList.add('open');let h='';
+  Object.entries(S[m].days).forEach(([d,t])=>{h+=`<tr class="d" data-p="${m}" data-day="${d}" data-id="${d}"><td><span class="car">▶</span>${d}</td>${cells(t)}<td></td></tr>`});
+  tr.insertAdjacentHTML('afterend',h);
+ }else if(tr.classList.contains('d')){
+  const d=tr.dataset.day,m=tr.dataset.p;
+  if(tr.classList.contains('open')){tr.classList.remove('open');const n=tr.nextElementSibling;if(n&&n.classList.contains('lr'))n.remove();return}
+  tr.classList.add('open');
+  tr.insertAdjacentHTML('afterend',`<tr class="lr" data-p="${m}"><td class="lines" colspan="11"><div class="lw">Loading…</div></td></tr>`);
+  lines(m).then(rows=>renderLines(tr.nextElementSibling,rows.filter(r=>r.d===d)));
+ }
+}
+const GROUPS={All:()=>true,Orders:r=>r.type==='Order',Refunds:r=>r.type==='Refund'||r.type==='Chargeback Refund'||r.type==='A-to-z Guarantee Claim',Payouts:r=>r.type==='Transfer','Shipping labels':r=>r.type==='Shipping Services','Other/adjustments':r=>['Adjustment','Service Fee'].includes(r.type)};
+function renderLines(lr,rows){
+ const box=lr.querySelector('.lw');
+ const draw=g=>{
+  const sel=rows.filter(GROUPS[g]);
+  const body=sel.map(r=>`<tr><td class="s">${r.t}</td><td class="s">${esc(r.type)}</td><td class="s">${esc(r.order)}</td><td class="s">${esc(r.sku)}</td><td class="t">${esc(dec(r.desc))}</td><td>${r.qty||''}</td><td>${r.sales?fm(r.sales):''}</td><td>${r.ship?fm(r.ship):''}</td><td>${fc(r.sellfee+r.fbafee+r.otherfee)}</td><td>${fc(r.total)}</td><td class="s"><a class="src" href="${srcHref(r.src)}" title="Open source CSV, go to line ${r.line}">${esc(r.src.replace('MonthlyUnifiedTransaction','')).replace('.csv','')} : line ${r.line}</a></td></tr>`).join('');
+  const q=sel.reduce((a,r)=>a+r.qty,0),t=sel.reduce((a,r)=>a+r.total,0);
+  box.querySelector('.tbody').innerHTML=body||'<tr><td colspan="11" class="s">No rows</td></tr>';
+  box.querySelector('.foot').innerHTML=`${sel.length} rows · units ${q} · total ${fm(Math.round(t*100)/100)}`;
+  box.querySelectorAll('.chip').forEach(c=>c.classList.toggle('on',c.dataset.g===g));
+ };
+ box.innerHTML=`<div class="chips">${Object.keys(GROUPS).map(g=>`<button class="chip" data-g="${g}">${g}</button>`).join('')}<span class="sub foot" style="margin-left:8px"></span></div><table class="l"><thead><tr><th>Time</th><th>Type</th><th>Order ID</th><th>SKU</th><th>Description</th><th>Qty</th><th>Product sales</th><th>Shipping cr.</th><th>Fees</th><th>Total</th><th>Source (CSV file : line)</th></tr></thead><tbody class="tbody"></tbody></table>`;
+ box.addEventListener('click',e=>{const c=e.target.closest('.chip');if(c){e.stopPropagation();draw(c.dataset.g)}});
+ draw('Orders');
+}
+async function buildPayouts(months){
+ let all=[];for(const m of months){const rows=await lines(m);rows.forEach(r=>{if(r.type==='Transfer')all.push(r)})}
+ const byAcct={};all.forEach(r=>byAcct[r.acct||'?']=(byAcct[r.acct||'?']||0)+(-r.total));
+ $('#ptb').innerHTML=all.map(r=>`<tr><td>${r.d}</td><td>…${esc(r.acct||'?')}</td><td>${fm(-r.total)}</td><td>${esc(r.settle)}</td><td style="text-align:left;white-space:normal">${esc(dec(r.desc))}</td><td style="text-align:left"><a class="src" href="${srcHref(r.src)}">${esc(r.src.replace('MonthlyUnifiedTransaction','')).replace('.csv','')} : line ${r.line}</a></td></tr>`).join('');
+ $('#pleg').textContent=all.length+' payouts. By bank account: '+Object.entries(byAcct).map(([a,v])=>'…'+a+' = '+fm(v)).join(' · ');
+}
+document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('on',x===b));$('#v-sales').classList.toggle('hid',b.dataset.v!=='sales');$('#v-payouts').classList.toggle('hid',b.dataset.v!=='payouts')});
+init().catch(e=>{document.body.insertAdjacentHTML('afterbegin','<div class="note">Could not load data ('+esc(e)+'). Open this page through a web server (e.g. GitHub Pages / Cloudflare Pages), not by double-clicking the file.</div>')});
+</script>
+</body>
+</html>
