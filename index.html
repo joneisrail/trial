@@ -74,7 +74,7 @@ a{color:var(--acc);text-decoration:none}a:hover{text-decoration:underline}
 <div id="v-purchases" class="hid">
   <div class="cards" id="pcards"></div>
   <div class="note" id="pnote"></div>
-  <div class="wrap"><table id="putbl"><thead><tr><th>Month / invoice</th><th>Invoices</th><th>Units</th><th>Total purchases</th><th>SCENTCITY INC</th><th>B&amp;S Fragrances</th><th>Dewan Fragrances</th><th>Source</th></tr></thead><tbody id="pub"></tbody></table></div>
+  <div class="wrap"><table id="putbl"><thead><tr><th>Month / invoice</th><th>Invoices</th><th>Units</th><th>Total purchases</th><th>SCENTCITY INC</th><th>B&amp;S Fragrances</th><th>Dewan Fragrances</th><th>Perfume Center</th><th>Source</th></tr></thead><tbody id="pub"></tbody></table></div>
   <div class="legend">Each invoice number is counted once, using its final version (an invoice rather than a draft order, then the latest PDF creation time). Earlier versions are listed under the invoice. Line links open the PDF at the page the line appears on.</div>
  </div>
  <div id="v-compare" class="hid">
@@ -157,7 +157,7 @@ async function buildPayouts(months){
 document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('on',x===b));['sales','payouts','purchases','compare'].forEach(v=>$('#v-'+v).classList.toggle('hid',b.dataset.v!==v));if(b.dataset.v==='purchases'||b.dataset.v==='compare')loadInv()});
 let INV=null,invP=null;
 const pdfHref=(f,pg)=>encodeURI(f)+(pg?'#page='+pg:'');
-const SUP={'SCENTCITY INC':'SCENTCITY','B&S FRAGRANCES AND COSMETICS INC.':'B&S','DEWAN FRAGRANCES INC':'DEWAN'};
+const SUP={'SCENTCITY INC':'SCENTCITY','B&S FRAGRANCES AND COSMETICS INC.':'B&S','DEWAN FRAGRANCES INC':'DEWAN','PERFUME CENTER OF AMERICA':'PCA'};
 const units=i=>i.lines.filter(x=>!x.non_merch).reduce((a,x)=>a+x.qty,0);
 function loadInv(){if(!invP)invP=fetch('data/invoices/invoices.json').then(r=>r.json()).then(d=>{INV=d;buildPurchases();buildCompare()});return invP}
 function buildPurchases(){
@@ -165,11 +165,11 @@ function buildPurchases(){
  fin.forEach(i=>{(byM[i.iso_date.slice(0,7)]=byM[i.iso_date.slice(0,7)]||[]).push(i)});
  const tot=a=>Math.round(a.reduce((x,i)=>x+i.total,0)*100)/100;
  const bySup=n=>tot(fin.filter(i=>SUP[i.supplier]===n));
- $('#pcards').innerHTML=[['Invoices (final versions)',fin.length],['Units purchased',fi(fin.reduce((a,i)=>a+units(i),0))],['Total purchases',fm(tot(fin))],['SCENTCITY INC',fm(bySup('SCENTCITY'))],['B&S Fragrances',fm(bySup('B&S'))],['Dewan Fragrances',fm(bySup('DEWAN'))],['Files read',INV.length]].map(([k,v])=>`<div class="card"><div class="k">${k}</div><div class="v">${v}</div></div>`).join('');
+ $('#pcards').innerHTML=[['Invoices (final versions)',fin.length],['Units purchased',fi(fin.reduce((a,i)=>a+units(i),0))],['Total purchases',fm(tot(fin))],['SCENTCITY INC',fm(bySup('SCENTCITY'))],['B&S Fragrances',fm(bySup('B&S'))],['Dewan Fragrances',fm(bySup('DEWAN'))],['Perfume Center',fm(bySup('PCA'))],['Files read',INV.length]].map(([k,v])=>`<div class="card"><div class="k">${k}</div><div class="v">${v}</div></div>`).join('');
  const multi=INV.filter(i=>i.final&&i.versions_of_number>1).length,flag=INV.filter(i=>i.problems.some(p=>p.includes('LOWER')));
  $('#pnote').innerHTML=`<b>Data notes.</b> ${INV.length} PDF files contain ${fin.length} distinct invoices; ${multi} invoice numbers appear in more than one file (versions or copies) and are counted once. ${flag.length?`<b>To confirm:</b> invoice ${flag.map(i=>i.number).join(', ')} has a later file with a <i>lower</i> total than an earlier one; the later file is used.`:''}`;
  let h='',yr=null,ym=[];
- const row=(l,list)=>`<td>${fi(list.length)}</td><td>${fi(list.reduce((a,i)=>a+units(i),0))}</td><td>${fm(tot(list))}</td><td>${fm(tot(list.filter(i=>SUP[i.supplier]==='SCENTCITY')))}</td><td>${fm(tot(list.filter(i=>SUP[i.supplier]==='B&S')))}</td><td>${fm(tot(list.filter(i=>SUP[i.supplier]==='DEWAN')))}</td>`;
+ const row=(l,list)=>`<td>${fi(list.length)}</td><td>${fi(list.reduce((a,i)=>a+units(i),0))}</td><td>${fm(tot(list))}</td><td>${fm(tot(list.filter(i=>SUP[i.supplier]==='SCENTCITY')))}</td><td>${fm(tot(list.filter(i=>SUP[i.supplier]==='B&S')))}</td><td>${fm(tot(list.filter(i=>SUP[i.supplier]==='DEWAN')))}</td><td>${fm(tot(list.filter(i=>SUP[i.supplier]==='PCA')))}</td>`;
  const flush=()=>{if(yr)h+=`<tr class="y"><td>${yr} total</td>${row('',ym)}<td></td></tr>`};
  Object.keys(byM).sort().forEach(m=>{const y=m.slice(0,4);if(y!==yr){flush();yr=y;ym=[]}ym.push(...byM[m]);
   h+=`<tr class="m" data-pm="${m}"><td><span class="car">▶</span>${mname(m)}</td>${row('',byM[m])}<td></td></tr>`});
@@ -182,14 +182,14 @@ function onPClick(e){
   if(tr.classList.contains('open')){tr.classList.remove('open');document.querySelectorAll(`[data-pp="${m}"]`).forEach(x=>x.remove());return}
   tr.classList.add('open');
   const list=INV.filter(i=>i.final&&i.iso_date.startsWith(m)).sort((a,b)=>a.iso_date.localeCompare(b.iso_date)||a.number.localeCompare(b.number));
-  tr.insertAdjacentHTML('afterend',list.map(i=>`<tr class="d" data-pp="${m}" data-pi="${INV.indexOf(i)}"><td><span class="car">▶</span>${i.iso_date} · ${SUP[i.supplier]} #${esc(i.number)}${i.versions_of_number>1?` <span class="sub">(${i.versions_of_number} versions)</span>`:''}${i.problems.some(p=>p.includes('LOWER'))?' <b class="neg">⚠ confirm</b>':''}</td><td>1</td><td>${fi(units(i))}</td><td>${fm(i.total)}</td><td colspan="3"></td><td><a class="src" href="${pdfHref(i.file)}">open PDF</a></td></tr>`).join(''));
+  tr.insertAdjacentHTML('afterend',list.map(i=>`<tr class="d" data-pp="${m}" data-pi="${INV.indexOf(i)}"><td><span class="car">▶</span>${i.iso_date} · ${SUP[i.supplier]} #${esc(i.number)}${i.versions_of_number>1?` <span class="sub">(${i.versions_of_number} versions)</span>`:''}${i.problems.some(p=>p.includes('LOWER'))?' <b class="neg">⚠ confirm</b>':''}</td><td>1</td><td>${fi(units(i))}</td><td>${fm(i.total)}</td><td colspan="4"></td><td><a class="src" href="${pdfHref(i.file)}">open PDF</a></td></tr>`).join(''));
  }else if(tr.dataset.pi!==undefined){
   if(tr.classList.contains('open')){tr.classList.remove('open');const n=tr.nextElementSibling;if(n&&n.classList.contains('lr'))n.remove();return}
   tr.classList.add('open');const i=INV[+tr.dataset.pi];
   const vers=INV.filter(x=>x.supplier===i.supplier&&x.number===i.number).sort((a,b)=>a.version-b.version);
   const vh=vers.length>1?`<div class="legend">Versions of this invoice number: ${vers.map(v=>`<a class="src" href="${pdfHref(v.file)}">${esc(v.file.split('/').pop())}</a> (${v.doc_type}, created ${(v.pdf_created||'').slice(0,10)}, ${fm(v.total)}${v.final?' — <b>used</b>':''})`).join(' · ')}</div>`:'';
   const body=i.lines.map(x=>`<tr><td class="s src">${esc(x.code)}</td><td class="t">${esc(x.desc)}</td><td>${x.non_merch?'':fi(x.qty)}</td><td>${fm(x.price)}</td><td>${fm(x.amount)}</td><td class="s"><a class="src" href="${pdfHref(i.file,x.page)}">PDF page ${x.page}</a></td></tr>`).join('');
-  tr.insertAdjacentHTML('afterend',`<tr class="lr" data-pp="${tr.dataset.pp}"><td class="lines" colspan="8"><div class="lw"><div class="sub">${esc(i.supplier)} · invoice ${esc(i.number)} · ${i.date} · billed to ${esc(i.bill_to||'')} · ${i.lines.length} lines · ${fi(units(i))} units · total ${fm(i.total)}</div>${vh}<table class="l"><thead><tr><th>Item code</th><th>Description</th><th>Qty</th><th>Price each</th><th>Amount</th><th>Source</th></tr></thead><tbody>${body}</tbody></table></div></td></tr>`);
+  tr.insertAdjacentHTML('afterend',`<tr class="lr" data-pp="${tr.dataset.pp}"><td class="lines" colspan="9"><div class="lw"><div class="sub">${esc(i.supplier)} · invoice ${esc(i.number)} · ${i.date} · billed to ${esc(i.bill_to||'')} · ${i.lines.length} lines · ${fi(units(i))} units · total ${fm(i.total)}</div>${vh}<table class="l"><thead><tr><th>Item code</th><th>Description</th><th>Qty</th><th>Price each</th><th>Amount</th><th>Source</th></tr></thead><tbody>${body}</tbody></table></div></td></tr>`);
  }
 }
 function buildCompare(){
