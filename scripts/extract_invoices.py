@@ -95,6 +95,15 @@ if __name__ == "__main__":
             x["version"] = k + 1; x["versions_of_number"] = len(v); x["final"] = (k == len(v) - 1)
             if x["final"] and any((y["total"] or 0) > (x["total"] or 0) for y in v[:-1]):
                 x["problems"].append("final version has LOWER total than an earlier version - confirm")
+    # footer text can bleed into the last description of a page; strip it
+    foot = re.compile(r"\s*(Total Payments/Credits|Sale Amt\.?:|Continued)\b.*$", re.I)
+    for i in invs:
+        for x in i["lines"]:
+            x["desc"] = foot.sub("", x["desc"]).strip()
+            if not x["desc"] and " " in x["code"].strip():          # item no. and description separated by one space
+                x["code"], x["desc"] = x["code"].strip().split(" ", 1)
+            elif not x["desc"] or x["code"].upper() in ("PACKAGING", "#5") or re.search(r"\b(bag|packaging)\b", x["desc"], re.I) and x["price"] <= 30 and len(x["desc"]) < 12:
+                x["non_merch"] = True; x["desc"] = x["desc"] or x["code"]   # shopping bags / packaging, not merchandise
     json.dump(invs, open(os.path.join(OUT, "invoices.json"), "w"), separators=(",", ":"))
     # image-only supporting documents (no extractable text), read by eye
     support = [{"file": "All Invoice/Others/Scentcity BOL.pdf", "title": "Bill of Lading 118841067, 15 May 2019: Niche Brands International (Houston TX) to Scent City (Plainview NY), UPS Freight, 1 pallet / 24 boxes / 1,190 lb",

@@ -60,7 +60,7 @@ a{color:var(--acc);text-decoration:none}a:hover{text-decoration:underline}
 <main>
  <div class="cards" id="cards"></div>
  <div class="note" id="note"></div>
- <div class="tabs"><button class="tab on" data-v="sales">Sales by month</button><button class="tab" data-v="payouts">Payouts to bank</button><button class="tab" data-v="purchases">Purchases (supplier invoices)</button><button class="tab" data-v="compare">Units: sold vs purchased</button></div>
+ <div class="tabs"><button class="tab on" data-v="sales">Sales by month</button><button class="tab" data-v="payouts">Payouts to bank</button><button class="tab" data-v="purchases">Purchases (supplier invoices)</button><button class="tab" data-v="compare">Units: sold vs purchased</button><button class="tab" data-v="products">Products (matched)</button></div>
  <div id="v-sales">
   <div class="wrap"><table id="tbl"><thead><tr>
    <th>Month</th><th>Orders</th><th>Units sold</th><th title="Item price only; excludes shipping and tax">Product sales</th><th>Shipping credits</th><th title="Selling fees, shipping labels and other Amazon fees">Amazon fees</th><th>Refunds (#)</th><th>Refunds ($)</th><th title="Money Amazon transferred to the bank account">Paid to bank</th><th title="Change in Amazon balance (all rows summed). Not profit.">Net balance change</th><th>Source file</th>
@@ -81,6 +81,19 @@ a{color:var(--acc);text-decoration:none}a:hover{text-decoration:underline}
  <div id="v-compare" class="hid">
   <div class="note">Units sold are Amazon order rows; units purchased are supplier invoice lines. <b>This is a total-units comparison only — products are not yet matched</b>, so a monthly gap does not mean a specific item is missing. Invoices uploaded so far may be incomplete.</div>
   <div class="wrap"><table id="ctbl"><thead><tr><th>Month</th><th>Units sold (Amazon)</th><th>Units purchased</th><th>Purchased − sold</th><th>Cumulative sold</th><th>Cumulative purchased</th><th>Cumulative gap</th></tr></thead><tbody id="ctb"></tbody></table></div>
+ </div>
+<div id="v-products" class="hid">
+  <div class="cards" id="mcards"></div>
+  <div class="note" id="mnote"></div>
+  <div class="chips" style="margin:10px 0">
+   <select id="mstatus" class="chip"><option value="all">All products</option><option value="matched">Matched (high + probable)</option><option value="matched_high">Matched – high confidence</option><option value="matched_probable">Matched – probable</option><option value="short">Sold more than sourced</option><option value="review">Needs review (low confidence)</option><option value="sold_no_invoice">Sold on Amazon, no invoice found</option><option value="sourced_not_sold">Sourced, no Amazon sale matched</option></select>
+   <select id="msort" class="chip"><option value="sold">Sort: units sold</option><option value="src">Sort: units sourced</option><option value="short">Sort: sold − sourced (largest first)</option><option value="name">Sort: name</option></select>
+   <input id="msearch" class="chip" style="min-width:220px;border-radius:8px;padding:5px 10px" placeholder="Search product, title, supplier text, SKU…">
+   <span class="sub" id="mcount"></span>
+  </div>
+  <div class="wrap"><table id="mtbl"><thead><tr><th>Product</th><th>Size (oz)</th><th>Status</th><th>Units sold (Amazon)</th><th>Units sourced (invoices)</th><th>Sold − sourced</th><th>Amazon product sales</th><th>Purchases</th></tr></thead><tbody id="mtb"></tbody></table></div>
+  <div style="margin:10px 2px"><button class="chip" id="mmore">Show more</button></div>
+  <div class="legend">Matching is by product name, size, set/single, gender and type (see data/products). “High” = same name and size on both sides. “Probable” = near size, spelling/abbreviation difference, or size not printed on one side. “Needs review” = a similar product exists but evidence is weak, so it is <b>not counted as matched</b>. Nothing is merged silently: expand a product to see every Amazon title and invoice description combined into it.</div>
  </div>
 </main>
 <script>
@@ -155,7 +168,7 @@ async function buildPayouts(months){
  $('#ptb').innerHTML=all.map(r=>`<tr><td>${r.d}</td><td>…${esc(r.acct||'?')}</td><td>${fm(-r.total)}</td><td>${esc(r.settle)}</td><td style="text-align:left;white-space:normal">${esc(dec(r.desc))}</td><td style="text-align:left"><a class="src" href="${srcHref(r.src)}">${esc(r.src.replace('MonthlyUnifiedTransaction','')).replace('.csv','')} : line ${r.line}</a></td></tr>`).join('');
  $('#pleg').textContent=all.length+' payouts. By bank account: '+Object.entries(byAcct).map(([a,v])=>'…'+a+' = '+fm(v)).join(' · ');
 }
-document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('on',x===b));['sales','payouts','purchases','compare'].forEach(v=>$('#v-'+v).classList.toggle('hid',b.dataset.v!==v));if(b.dataset.v==='purchases'||b.dataset.v==='compare')loadInv()});
+document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('on',x===b));['sales','payouts','purchases','compare','products'].forEach(v=>$('#v-'+v).classList.toggle('hid',b.dataset.v!==v));if(b.dataset.v==='purchases'||b.dataset.v==='compare')loadInv();if(b.dataset.v==='products')loadProducts()});
 let INV=null,invP=null;
 const pdfHref=(f,pg)=>f.split('/').map(encodeURIComponent).join('/')+(pg?'#page='+pg:'');
 const SUP={'SCENTCITY INC':'SCENTCITY','B&S FRAGRANCES AND COSMETICS INC.':'B&S','DEWAN FRAGRANCES INC':'DEWAN','PERFUME CENTER OF AMERICA':'PCA','PERFUME NETWORK INC':'PNI'};
@@ -209,6 +222,60 @@ function buildCompare(){
   h+=`<tr><td>${mname(k)}</td><td>${fi(so)}</td><td>${fi(pu)}</td><td>${fc2(pu-so)}</td><td>${fi(cs)}</td><td>${fi(cp)}</td><td>${fc2(cp-cs)}</td></tr>`});
  h+=`<tr class="tot"><td>Total</td><td>${fi(cs)}</td><td>${fi(cp)}</td><td>${fc2(cp-cs)}</td><td></td><td></td><td></td></tr>`;
  $('#ctb').innerHTML=h;
+}
+let PR=null,prP=null,PSUM=null,shown=0,view=[];
+const STAT={matched_high:'Matched – high',matched_probable:'Matched – probable',review:'Needs review',sold_no_invoice:'Sold, no invoice found',sourced_not_sold:'Sourced, not sold on Amazon'};
+function loadProducts(){if(!prP)prP=Promise.all([fetch('data/products/products.json').then(r=>r.json()),fetch('data/products/summary.json').then(r=>r.json())]).then(([a,b])=>{PR=a;PSUM=b;buildProducts()});return prP}
+function buildProducts(){
+ const su=PSUM.sold_units_by_status,sr=PSUM.sourced_units_by_status,T=PSUM.total_sold_units,pc=v=>(100*v/T).toFixed(1)+'%';
+ const matched=PR.filter(p=>p.status.startsWith('matched'));
+ const short=matched.reduce((a,p)=>a+Math.max(0,p.sold_units-p.sourced_units),0),over=matched.reduce((a,p)=>a+Math.max(0,p.sourced_units-p.sold_units),0);
+ $('#mcards').innerHTML=[['Units sold on Amazon',fi(T)],['Matched – high',fi(su.matched_high)+' ('+pc(su.matched_high)+')'],['Matched – probable',fi(su.matched_probable)+' ('+pc(su.matched_probable)+')'],['Needs review (not counted)',fi(su.review)+' ('+pc(su.review)+')'],['Sold, no invoice found',fi(su.sold_no_invoice)+' ('+pc(su.sold_no_invoice)+')'],['Units sourced (invoices)',fi(PSUM.total_sourced_units)],['Sourced, no Amazon sale matched',fi(sr.sourced_not_sold)]].map(([k,v])=>`<div class="card"><div class="k">${k}</div><div class="v" style="font-size:17px">${v}</div></div>`).join('');
+ $('#mnote').innerHTML=`<b>How to read this.</b> ${fi(PSUM.amazon_titles)} Amazon titles and ${fi(PSUM.supplier_descriptions)} invoice descriptions were grouped into ${fi(PSUM.products)} products. Within matched products, <b>${fi(short)} units were sold beyond what the invoices show sourced</b>, while ${fi(over)} units were sourced beyond what Amazon sold of the same product (stock on hand, other channels, or a matching error). Units sold with no invoice evidence at all: ${fi(su.sold_no_invoice+su.review)}.`;
+ ['mstatus','msort','msearch'].forEach(id=>$('#'+id).addEventListener('input',applyP));$('#mmore').onclick=()=>{shown+=150;drawP()};
+ $('#mtb').addEventListener('click',onMClick);applyP();
+}
+function applyP(){
+ const st=$('#mstatus').value,q=$('#msearch').value.trim().toLowerCase(),so=$('#msort').value;
+ view=PR.filter(p=>{
+  if(st==='matched'&&!p.status.startsWith('matched'))return false;
+  if(st==='short'&&!(p.status.startsWith('matched')&&p.sold_units>p.sourced_units))return false;
+  if(!['all','matched','short'].includes(st)&&p.status!==st)return false;
+  if(q){const h=(p.name+' '+p.amazon.map(a=>a.title+' '+a.skus.join(' ')).join(' ')+' '+p.supplier.map(x=>x.desc+' '+x.supplier).join(' ')+' '+p.id).toLowerCase();if(!h.includes(q))return false}
+  return true});
+ const k={sold:p=>-p.sold_units,src:p=>-p.sourced_units,short:p=>-(p.sold_units-p.sourced_units),name:p=>p.name.toLowerCase()}[so];
+ view.sort((a,b)=>{const x=k(a),y=k(b);return x<y?-1:x>y?1:0});
+ shown=150;$('#mcount').textContent=fi(view.length)+' products';drawP();
+}
+function drawP(){
+ const rows=view.slice(0,shown);
+ $('#mtb').innerHTML=rows.map(p=>{const d=p.sold_units-p.sourced_units;
+  return `<tr class="m" data-id="${p.id}"><td style="white-space:normal;min-width:260px"><span class="car">▶</span><span class="sub">${p.id}</span> ${esc(dec(p.name))}${p.set?' <span class="sub">(set)</span>':''}</td><td>${p.size??'—'}</td><td style="text-align:left">${STAT[p.status]}</td><td>${fi(p.sold_units)}</td><td>${fi(p.sourced_units)}</td><td>${d>0?'<span class="neg">'+fi(d)+'</span>':fi(d)}</td><td>${fm(p.sold_sales)}</td><td>${fm(p.sourced_amount)}</td></tr>`}).join('');
+ $('#mmore').style.display=view.length>shown?'':'none';
+}
+const shardCache={};
+function shard(id){const n=Math.floor((+id.slice(1)-1)/PSUM.shard_size),f=String(n).padStart(3,'0');if(!shardCache[f])shardCache[f]=fetch('data/products/detail/'+f+'.json').then(r=>r.json());return shardCache[f].then(d=>d[id])}
+function onMClick(e){
+ const tr=e.target.closest('tr');if(!tr||e.target.closest('a,button'))return;
+ if(tr.classList.contains('lr')||!tr.dataset.id)return;
+ if(tr.classList.contains('open')){tr.classList.remove('open');const n=tr.nextElementSibling;if(n&&n.classList.contains('lr'))n.remove();return}
+ tr.classList.add('open');const p=PR.find(x=>x.id===tr.dataset.id);
+ const am=p.amazon.map(a=>`<tr><td class="t">${esc(dec(a.title))}</td><td class="s src">${esc(a.skus.join(', '))}</td><td>${fi(a.units)}</td><td>${fm(a.sales)}</td><td class="s">${a.tier==='high'?'high':a.tier==='medium'?'probable':'low'}${a.note?' — '+esc(a.note):''}</td></tr>`).join('');
+ const su=p.supplier.map(x=>`<tr><td class="s">${esc(x.supplier)}</td><td class="t">${esc(x.desc)}</td><td>${fi(x.units)}</td><td>${fm(x.amount)}</td></tr>`).join('');
+ const cand=p.candidates.length?`<div class="legend">Possible but unconfirmed invoice match: <b>${esc(p.candidates[0].supplier_desc)}</b> (${esc(p.candidates[0].why)}; size ${p.candidates[0].size_match})</div>`:'';
+ tr.insertAdjacentHTML('afterend',`<tr class="lr"><td class="lines" colspan="8"><div class="lw">
+  ${cand}<div class="chips"><b>Amazon titles combined into this product</b></div>
+  <table class="l" style="min-width:700px"><thead><tr><th>Amazon title</th><th>SKU(s)</th><th>Units</th><th>Product sales</th><th>Match</th></tr></thead><tbody>${am||'<tr><td colspan="5" class="s">None</td></tr>'}</tbody></table>
+  <div class="chips" style="margin-top:12px"><b>Invoice descriptions combined into this product</b></div>
+  <table class="l" style="min-width:700px"><thead><tr><th>Supplier</th><th>Invoice description</th><th>Units</th><th>Amount</th></tr></thead><tbody>${su||'<tr><td colspan="4" class="s">None</td></tr>'}</tbody></table>
+  <div class="chips" style="margin-top:12px"><button class="chip" data-load="1">Show source documents (Amazon order lines + invoice lines)</button></div><div class="docs"></div></div></td></tr>`);
+ const lr=tr.nextElementSibling;
+ lr.querySelector('[data-load]').onclick=async ev=>{ev.stopPropagation();const d=await shard(p.id),box=lr.querySelector('.docs');
+  const cap=300,so=d.sold.slice(0,cap),bo=d.bought.slice(0,cap);
+  box.innerHTML=`<div class="legend">Amazon order lines: ${fi(d.sold.length)}${d.sold.length>cap?' (first '+cap+' shown, oldest first)':''}. Each links to the source CSV; the line number is the row in that file.</div>
+  <table class="l" style="min-width:700px"><thead><tr><th>Date</th><th>Order ID</th><th>Qty</th><th>Product sales</th><th>Source (CSV : line)</th></tr></thead><tbody>${so.map(r=>`<tr><td class="s">${r[0]}</td><td class="s">${esc(r[1])}</td><td>${r[2]}</td><td>${fm(r[3])}</td><td class="s"><a class="src" href="${srcHref(r[4])}">${esc(r[4].replace('MonthlyUnifiedTransaction','').replace('.csv',''))} : line ${r[5]}</a></td></tr>`).join('')}</tbody></table>
+  <div class="legend" style="margin-top:10px">Invoice lines: ${fi(d.bought.length)}${d.bought.length>cap?' (first '+cap+' shown)':''}. Each links to the PDF page.</div>
+  <table class="l" style="min-width:800px"><thead><tr><th>Date</th><th>Supplier</th><th>Invoice #</th><th>Description</th><th>Qty</th><th>Price</th><th>Amount</th><th>Source</th></tr></thead><tbody>${bo.map(r=>`<tr><td class="s">${r[0]}</td><td class="s">${esc(r[1])}</td><td class="s">${esc(r[2])}</td><td class="t">${esc(r[8])}</td><td>${r[3]}</td><td>${fm(r[4])}</td><td>${fm(r[5])}</td><td class="s"><a class="src" href="${pdfHref(r[6],r[7])}">PDF page ${r[7]}</a></td></tr>`).join('')||'<tr><td colspan="8" class="s">No invoice lines</td></tr>'}</tbody></table>`}
 }
 const fc2=n=>n<0?'<span class="neg">'+fi(n)+'</span>':fi(n);
 init().catch(e=>{document.body.insertAdjacentHTML('afterbegin','<div class="note">Could not load data ('+esc(e)+'). Open this page through a web server (e.g. GitHub Pages / Cloudflare Pages), not by double-clicking the file.</div>')});
