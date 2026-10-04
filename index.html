@@ -50,6 +50,7 @@ a{color:var(--acc);text-decoration:none}a:hover{text-decoration:underline}
 .hid{display:none}
 .badge{display:inline-block;font-size:11px;font-weight:600;background:var(--warn);border:1px solid var(--line);border-radius:99px;padding:2px 9px;vertical-align:middle;margin-left:6px}
 @media print{.tabs,.chips,#mmore,header .chip{display:none!important}.hid{display:block!important}#v-products,#v-payouts{display:none!important}body{background:#fff;color:#000}.wrap{overflow:visible;border:0}table{min-width:0!important;font-size:11px}tr.lr{display:none}}
+tr.outside td{color:var(--mute);font-style:italic}
 .legend{color:var(--mute);font-size:12px;margin:8px 2px}
 @media(max-width:600px){h1{font-size:17px}}
 </style>
@@ -77,7 +78,7 @@ a{color:var(--acc);text-decoration:none}a:hover{text-decoration:underline}
   <div class="legend">Dates are Amazon's Pacific time as printed. Units = quantity on order rows. Refund rows carry no quantity, so refunds are shown in dollars. “Net balance change” is not profit: it is the sum of every Amazon row, and differs from payouts when money is held or released across months.</div>
  </div>
  <div id="v-period" class="hid">
-  <div class="chips" style="margin:6px 0 10px"><span class="sub">Period:</span> from <select id="pfrom" class="chip"></select> to <select id="pto" class="chip"></select> <span class="sub">(default: first full month after the switch to the Capital One account, Jul 2018, through the last month with orders, Mar 2020)</span></div>
+  <div class="chips" style="margin:6px 0 10px"><span class="sub">Period:</span> from <input type="date" id="pfromd" class="chip"> to <input type="date" id="ptod" class="chip"> <span class="sub">Default: 29 Jul 2018 (first Amazon payout to the Capital One account) to 31 Mar 2020 (last month with orders). July 1–28 is shown greyed for reference and is not in the totals.</span></div>
   <div class="cards" id="pdcards"></div>
   <div class="wrap"><table id="ptbl2"><thead><tr>
    <th>Month</th><th>Orders</th><th>Units sold</th><th title="Item price only; excludes shipping and tax">Product sales</th><th>Shipping credits</th><th>Amazon fees</th><th>Refunds (#)</th><th>Refunds ($)</th><th title="Money Amazon transferred to the bank account">Paid to bank</th><th title="Change in Amazon balance (all rows summed). Not profit.">Net balance change</th><th>Source file</th>
@@ -135,32 +136,46 @@ async function init(){
  const all=sum(months.map(m=>S[m].totals));
  $('#cards').innerHTML=[['Units sold',fi(all.units)],['Product sales',fm(all.sales)],['Paid to bank by Amazon',fm(all.payouts)],['Orders',fi(all.orders)],['Refunds',fi(all.refunds)+' ('+fm(all.refund_amt)+')'],['Period',ch.first_date+' → '+ch.last_date]].map(([k,v])=>`<div class="card"><div class="k">${k}</div><div class="v">${v}</div></div>`).join('');
  $('#note').innerHTML=`<b>Data notes.</b> ${fi(ch.total_rows_written)} rows loaded from ${ch.files.length} CSV files; every row's columns add up to its total (${ch.rows_where_components_ne_total} mismatches); ${ch.identical_row_groups_kept} groups of identical rows are kept, not removed. Orders and payouts stop in Mar 2020; Apr–Dec 2020 contain only refunds, label credits and two adjustments (see Dec 9, 2020: “Adjustment – Other”).`;
- monthTable($('#tb'),months);
+ monthTable($('#tb'),segsFor(months));
  initPeriod(months);
  buildPayouts(months);
 }
-function monthTable(tb,months){
+function segsFor(months){return months.map(m=>({m,label:mname(m),totals:S[m].totals,from:'',to:'',outside:false}))}
+function monthTable(tb,segs,totalLabel){
  let html='',yr=null,ym=[];
  const flushYear=()=>{if(yr){html+=`<tr class="y"><td>${yr} total</td>${cells(sum(ym))}<td></td></tr>`}};
- months.forEach(m=>{const y=m.slice(0,4);if(y!==yr){flushYear();yr=y;ym=[]}ym.push(S[m].totals);
-  html+=`<tr class="m" data-m="${m}"><td><span class="car">▶</span>${mname(m)}</td>${cells(S[m].totals)}<td><a href="${srcHref(srcFile(m))}" onclick="event.stopPropagation()" class="src">${srcFile(m).replace('MonthlyUnifiedTransaction','')}</a></td></tr>`});
- flushYear();html+=`<tr class="tot"><td>${months.length>0?'Total '+mname(months[0])+' – '+mname(months[months.length-1]):'Total'}</td>${cells(sum(months.map(m=>S[m].totals)))}<td></td></tr>`;
+ const inc=segs.filter(x=>!x.outside);
+ segs.forEach(g=>{const y=g.m.slice(0,4);
+  if(!g.outside){if(y!==yr){flushYear();yr=y;ym=[]}ym.push(g.totals)}
+  html+=`<tr class="m${g.outside?' outside':''}" data-m="${g.m}" data-from="${g.from}" data-to="${g.to}"><td><span class="car">▶</span>${g.label}</td>${cells(g.totals)}<td><a href="${srcHref(srcFile(g.m))}" onclick="event.stopPropagation()" class="src">${srcFile(g.m).replace('MonthlyUnifiedTransaction','')}</a></td></tr>`});
+ flushYear();html+=`<tr class="tot"><td>${totalLabel||'Grand total'}</td>${cells(sum(inc.map(x=>x.totals)))}<td></td></tr>`;
  tb.innerHTML=html;
  if(!tb.dataset.bound){tb.addEventListener('click',onClick);tb.dataset.bound='1'}
 }
+const dlab=d=>{const [y,m,dd]=d.split('-');return +dd+' '+MN[+m-1]+' '+y};
 function initPeriod(all){
- const real=all.filter(m=>S[m].totals.orders>0||S[m].totals.units>0);   // months with orders
- const opts=all.map(m=>`<option value="${m}">${mname(m)}</option>`).join('');
- $('#pfrom').innerHTML=opts;$('#pto').innerHTML=opts;
- $('#pfrom').value=all.includes('2018-08')?'2018-08':all[0];$('#pto').value=real.length?real[real.length-1]:all[all.length-1];
+ const real=all.filter(m=>S[m].totals.orders>0||S[m].totals.units>0);
+ const lastMonth=real.length?real[real.length-1]:all[all.length-1];
+ const lastDay=Object.keys(S[lastMonth].days).sort().pop();
+ const eom=m=>{const [y,mo]=m.split('-');return m+'-'+String(new Date(+y,+mo,0).getDate()).padStart(2,'0')};
+ $('#pfromd').value='2018-07-29';$('#ptod').value=eom(lastMonth);
  const draw=()=>{
-  let a=$('#pfrom').value,b=$('#pto').value;if(a>b){[a,b]=[b,a]}
-  const ms=all.filter(m=>m>=a&&m<=b),t=sum(ms.map(m=>S[m].totals));
-  $('#periodtab').textContent='Sales '+mname(a)+' – '+mname(b);
-  $('#pdcards').innerHTML=[['Period',mname(a)+' – '+mname(b)],['Units sold',fi(t.units)],['Orders',fi(t.orders)],['Product sales',fm(t.sales)],['Refunds',fi(t.refunds)+' ('+fm(t.refund_amt)+')'],['Paid to bank by Amazon',fm(t.payouts)]].map(([k,v])=>`<div class="card"><div class="k">${k}</div><div class="v" style="font-size:18px">${v}</div></div>`).join('');
-  monthTable($('#tb2'),ms);
+  let a=$('#pfromd').value||'2018-07-29',b=$('#ptod').value||eom(lastMonth);if(a>b){[a,b]=[b,a]}
+  const segs=[],am=a.slice(0,7),bm=b.slice(0,7);
+  all.filter(m=>m>=am&&m<=bm).forEach(m=>{
+   const days=Object.entries(S[m].days);
+   const inR=days.filter(([d])=>d>=a&&d<=b),partialStart=m===am&&a>m+'-01',partialEnd=m===bm&&b<eom(m);
+   if(partialStart){const pre=days.filter(([d])=>d<a);
+    if(pre.length)segs.push({m,label:mname(m)+' · '+dlab(m+'-01').split(' ')[0]+'–'+(+a.slice(8)-1)+' '+MN[+m.slice(5)-1]+' <span class="sub">(before the period; not in totals)</span>',totals:sum(pre.map(([,t])=>t)),from:m+'-01',to:a.slice(0,8)+String(+a.slice(8)-1).padStart(2,'0'),outside:true})}
+   if(partialStart||partialEnd){const f=partialStart?a:m+'-01',t=partialEnd?b:eom(m);
+    segs.push({m,label:mname(m)+' · '+(+f.slice(8))+'–'+(+t.slice(8))+' '+MN[+m.slice(5)-1],totals:sum(inR.map(([,t])=>t)),from:f,to:t,outside:false})}
+   else segs.push({m,label:mname(m),totals:S[m].totals,from:'',to:'',outside:false})});
+  const t=sum(segs.filter(x=>!x.outside).map(x=>x.totals));
+  $('#periodtab').textContent='Sales '+dlab(a)+' – '+dlab(b);
+  $('#pdcards').innerHTML=[['Period',dlab(a)+' – '+dlab(b)],['Units sold',fi(t.units)],['Orders',fi(t.orders)],['Product sales',fm(t.sales)],['Refunds',fi(t.refunds)+' ('+fm(t.refund_amt)+')'],['Paid to bank by Amazon',fm(t.payouts)]].map(([k,v])=>`<div class="card"><div class="k">${k}</div><div class="v" style="font-size:18px">${v}</div></div>`).join('');
+  monthTable($('#tb2'),segs,'Total '+dlab(a)+' – '+dlab(b));
  };
- $('#pfrom').onchange=draw;$('#pto').onchange=draw;draw();
+ $('#pfromd').onchange=draw;$('#ptod').onchange=draw;draw();
 }
 function toggleRows(tr,cls,build){
  const nxt=tr.nextElementSibling;
@@ -173,7 +188,7 @@ function onClick(e){
   const m=tr.dataset.m;tr.dataset.id=m;
   if(tr.classList.contains('open')){tr.classList.remove('open');[...tr.parentElement.querySelectorAll(`[data-p="${m}"]`)].forEach(x=>x.remove());return}
   tr.classList.add('open');let h='';
-  Object.entries(S[m].days).forEach(([d,t])=>{h+=`<tr class="d" data-p="${m}" data-day="${d}" data-id="${d}"><td><span class="car">▶</span>${d}</td>${cells(t)}<td></td></tr>`});
+  const f=tr.dataset.from,tt=tr.dataset.to;Object.entries(S[m].days).filter(([d])=>(!f||d>=f)&&(!tt||d<=tt)).forEach(([d,t])=>{h+=`<tr class="d" data-p="${m}" data-day="${d}" data-id="${d}"><td><span class="car">▶</span>${d}</td>${cells(t)}<td></td></tr>`});
   tr.insertAdjacentHTML('afterend',h);
  }else if(tr.classList.contains('d')){
   const d=tr.dataset.day,m=tr.dataset.p;
