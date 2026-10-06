@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "wordpress": {
+      "command": "npx",
+      "args": [
+        "mcp-remote",
+        "https://ai-fragrance.com/wp-json/easy-mcp-ai/v1/mcp",
+        "--header",
+        "Authorization: Bearer ${WP_MCP_TOKEN}"
+      ]
+    }
+  }
+}
